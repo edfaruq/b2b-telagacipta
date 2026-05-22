@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["pdf-lib"],
   images: {
-    qualities: [50, 55, 75],
+    formats: ["image/avif", "image/webp"],
+    qualities: [40, 45, 50, 55, 60, 75],
   },
 };
 

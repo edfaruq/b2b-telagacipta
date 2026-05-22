@@ -6,10 +6,15 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migrate": "node ./scripts/db-migrate.mjs"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "mysql2": "^3.22.3",
     "next": "^16.2.4",
+    "pdf-lib": "^1.17.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },

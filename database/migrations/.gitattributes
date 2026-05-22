@@ -1,0 +1,2 @@
+# Keep checksums stable with schema_migrations (applied on Windows / CRLF).
+*.sql text eol=crlf

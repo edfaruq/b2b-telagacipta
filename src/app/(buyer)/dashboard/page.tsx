@@ -4,69 +4,73 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import GlobalFooter from "@/components/GlobalFooter";
+import { HOMEPAGE_LATEST_COUNT } from "@/lib/homepage-latest";
 
 export default function BuyerDashboardPage() {
-  const products = [
-    {
-      title: "Giant Ginger",
-      price: "Rp 24.000 / kg",
-      origin: "Origin: Central Java",
-      badge: "",
-      media: "/images/products/jahe-gajah.jpg",
-    },
-    {
-      title: "Dried Cloves",
-      price: "Rp 82.000 / kg",
-      origin: "Origin: Maluku",
-      badge: "",
-      media: "/images/products/cengkeh.jpg",
-    },
-    {
-      title: "Fresh Turmeric",
-      price: "Rp 21.500 / kg",
-      origin: "Origin: East Java",
-      badge: "",
-      media: "/images/products/kunyit.jpg",
-    },
-    {
-      title: "Black Pepper",
-      price: "Rp 96.000 / kg",
-      origin: "Origin: Lampung",
-      badge: "",
-      media: "/images/products/lada-hitam.jpg",
-    },
-    {
-      title: "Cinnamon",
-      price: "Rp 54.000 / kg",
-      origin: "Origin: Kerinci",
-      badge: "",
-      media: "/images/products/kayu-manis.jpg",
-    },
-    {
-      title: "Dried Nutmeg",
-      price: "Rp 88.000 / kg",
-      origin: "Origin: Banda",
-      badge: "",
-      media: "/images/products/pala-kering.jpg",
-    },
-  ];
-  const favoriteProducts = [
-    products[0],
-    {
-      title: "Coffee Beans",
-      price: "Rp 76.000 / kg",
-      origin: "Origin: Toraja",
-      badge: "",
-      media: "/images/products/biji-kopi.jpg",
-    },
-    {
-      title: "Cardamom",
-      price: "Rp 112.000 / kg",
-      origin: "Origin: West Java",
-      badge: "",
-      media: "/images/products/kapulaga.jpg",
-    },
-  ];
+  type ShowcaseProduct = {
+    title: string;
+    slug: string;
+    price: string;
+    origin: string;
+    badge: string;
+    media: string;
+  };
+
+  const [products, setProducts] = useState<ShowcaseProduct[]>([]);
+  const [favoriteProducts, setFavoriteProducts] = useState<ShowcaseProduct[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/products");
+        const data = (await res.json()) as {
+          products?: Array<{
+            slug: string;
+            title: string;
+            origin: string;
+            price: string;
+            unit: string;
+            image: string;
+            favorite: boolean;
+          }>;
+        };
+        if (!res.ok || cancelled) return;
+        const list = data.products ?? [];
+        /* API mengembalikan aktif terurut id_produk DESC — Latest = N terbaru, tanpa flag admin. */
+        const latestSlice = list.slice(0, HOMEPAGE_LATEST_COUNT);
+        const mapped: ShowcaseProduct[] = latestSlice.map((p) => ({
+          title: p.title,
+          slug: p.slug,
+          price: `${p.price} ${p.unit}`.replace(/\s+/g, " ").trim(),
+          origin: p.origin,
+          badge: "",
+          media: p.image,
+        }));
+        const favs: ShowcaseProduct[] = list
+          .filter((p) => p.favorite)
+          .map((p) => ({
+            title: p.title,
+            slug: p.slug,
+            price: `${p.price} ${p.unit}`.replace(/\s+/g, " ").trim(),
+            origin: p.origin,
+            badge: "",
+            media: p.image,
+          }));
+        setProducts(mapped);
+        /* Tanpa fallback: jika tidak ada is_favorite di admin, section Favorite disembunyikan. */
+        setFavoriteProducts(favs);
+      } catch {
+        if (!cancelled) {
+          setProducts([]);
+          setFavoriteProducts([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [activeProductIndex, setActiveProductIndex] = useState(0);
   const [activeFavoriteIndex, setActiveFavoriteIndex] = useState(0);
@@ -74,11 +78,15 @@ export default function BuyerDashboardPage() {
   const [isMobileView, setIsMobileView] = useState(false);
   const [heroParallaxY, setHeroParallaxY] = useState(0);
   const [aboutParallaxY, setAboutParallaxY] = useState(0);
-  const [isHeroReady, setIsHeroReady] = useState(false);
   const heroSectionRef = useRef<HTMLElement | null>(null);
+  const productsContentRef = useRef<HTMLDivElement | null>(null);
+  const favoritesContentRef = useRef<HTMLDivElement | null>(null);
   const aboutSectionRef = useRef<HTMLElement | null>(null);
+  const aboutContentRef = useRef<HTMLDivElement | null>(null);
+  const officeContentRef = useRef<HTMLDivElement | null>(null);
 
   const goNextProducts = () => {
+    if (products.length === 0) return;
     if (isMobileView) {
       setActiveProductIndex((current) => (current + 1) % products.length);
       return;
@@ -98,6 +106,7 @@ export default function BuyerDashboardPage() {
   };
 
   const goPrevProducts = () => {
+    if (products.length === 0) return;
     if (isMobileView) {
       setActiveProductIndex((current) => (current - 1 + products.length) % products.length);
       return;
@@ -116,14 +125,17 @@ export default function BuyerDashboardPage() {
   };
 
   const goNextFavorites = () => {
+    if (favoriteProducts.length === 0) return;
     setActiveFavoriteIndex((current) => (current + 1) % favoriteProducts.length);
   };
 
   const goPrevFavorites = () => {
+    if (favoriteProducts.length === 0) return;
     setActiveFavoriteIndex((current) => (current - 1 + favoriteProducts.length) % favoriteProducts.length);
   };
 
   useEffect(() => {
+    if (products.length === 0) return;
     const intervalId = window.setInterval(() => {
       if (isMobileView || productPhase === "idle") goNextProducts();
     }, 7000);
@@ -131,7 +143,7 @@ export default function BuyerDashboardPage() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [isMobileView, productPhase]);
+  }, [isMobileView, productPhase, products.length]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 900px)");
@@ -180,25 +192,50 @@ export default function BuyerDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (sessionStorage.getItem("home-splash-done") === "1") {
-      setIsHeroReady(true);
-      return;
-    }
+    const sections = [
+      productsContentRef.current,
+      favoritesContentRef.current,
+      aboutContentRef.current,
+      officeContentRef.current,
+    ].filter((section): section is HTMLDivElement => section !== null);
 
-    const handleSplashDone = () => setIsHeroReady(true);
-    window.addEventListener("home-splash-done", handleSplashDone);
+    if (sections.length === 0) return;
 
-    return () => {
-      window.removeEventListener("home-splash-done", handleSplashDone);
-    };
-  }, []);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        });
+      },
+      { threshold: 0.2, rootMargin: "0px 0px -8% 0px" }
+    );
 
-  const leftProduct = products[activeProductIndex];
-  const prevProduct = products[(activeProductIndex - 1 + products.length) % products.length];
-  const rightProduct = products[(activeProductIndex + 1) % products.length];
-  const peekProduct = products[(activeProductIndex + 2) % products.length];
-  const incomingProduct = products[(activeProductIndex + 3) % products.length];
-  const activeFavoriteProduct = favoriteProducts[activeFavoriteIndex];
+    sections.forEach((section) => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, [favoriteProducts.length]);
+
+  const hasProducts = products.length > 0;
+  const n = products.length;
+  const ghost: ShowcaseProduct = {
+    title: "",
+    slug: "",
+    price: "",
+    origin: "",
+    badge: "",
+    media: "/images/logo-telagacipta.png",
+  };
+  const leftProduct = hasProducts ? products[activeProductIndex % n]! : ghost;
+  const prevProduct = hasProducts ? products[(activeProductIndex - 1 + n) % n]! : ghost;
+  const rightProduct = hasProducts ? products[(activeProductIndex + 1) % n]! : ghost;
+  const peekProduct = hasProducts ? products[(activeProductIndex + 2) % n]! : ghost;
+  const incomingProduct = hasProducts ? products[(activeProductIndex + 3) % n]! : ghost;
+  const activeFavoriteProduct =
+    favoriteProducts.length > 0
+      ? favoriteProducts[activeFavoriteIndex % favoriteProducts.length]!
+      : null;
 
   return (
     <>
@@ -210,6 +247,18 @@ export default function BuyerDashboardPage() {
         body {
           background: #f4f6fb;
           overflow-x: hidden;
+        }
+
+        html, body {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+          display: none;
+          width: 0;
+          height: 0;
         }
 
         .page {
@@ -235,13 +284,25 @@ export default function BuyerDashboardPage() {
         .page-inner {
           position: relative;
           z-index: 1;
-          max-width: 1200px;
+          max-width: var(--content-max-width);
+          width: 100%;
           margin: 0 auto;
-          padding: 0 24px 0;
-          min-height: calc(100vh - 76px);
+          padding: 0 var(--content-gutter) 0;
+          min-height: calc(100vh - var(--market-nav-height));
           display: flex;
           flex-direction: column;
         }
+        .reveal-section {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        .reveal-section.is-visible {
+          animation: sectionFadeInUp 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .reveal-section.delay-1 { animation-delay: 0.05s; }
+        .reveal-section.delay-2 { animation-delay: 0.12s; }
+        .reveal-section.delay-3 { animation-delay: 0.18s; }
+        .reveal-section.delay-4 { animation-delay: 0.24s; }
 
         /* ── HERO ── */
         .hero {
@@ -249,7 +310,7 @@ export default function BuyerDashboardPage() {
           display: flex;
           align-items: center;
           margin-bottom: 56px;
-          min-height: 700px;
+          min-height: calc(100vh - var(--market-nav-height));
           width: 100vw;
           margin-left: calc(50% - 50vw);
           margin-right: calc(50% - 50vw);
@@ -293,8 +354,8 @@ export default function BuyerDashboardPage() {
         .hero-left .hero-title,
         .hero-left .hero-sub,
         .hero-left .hero-cta-row {
-          opacity: 0;
-          transform: translateY(16px);
+          opacity: 1;
+          transform: translateY(0);
         }
         .hero-left.is-ready .pill,
         .hero-left.is-ready .hero-title,
@@ -463,12 +524,14 @@ export default function BuyerDashboardPage() {
         }
         .favorite-card {
           position: relative;
+          display: block;
           min-height: 280px;
           border-radius: 12px;
           overflow: hidden;
           border: 1px solid #D8E8FF;
           box-shadow: 0 8px 20px rgba(10, 40, 120, 0.12);
           background: #2e507e;
+          text-decoration: none;
         }
         .favorite-card::before {
           content: "";
@@ -830,6 +893,7 @@ export default function BuyerDashboardPage() {
 
         .feature-card {
           position: relative;
+          display: block;
           min-height: 360px;
           border-radius: 12px;
           overflow: hidden;
@@ -839,6 +903,7 @@ export default function BuyerDashboardPage() {
           transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
           background: #2e507e;
           backface-visibility: hidden;
+          text-decoration: none;
         }
         .feature-card.secondary {
           min-height: 360px;
@@ -998,6 +1063,16 @@ export default function BuyerDashboardPage() {
             transform: translateY(0);
           }
         }
+        @keyframes sectionFadeInUp {
+          0% {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
         .feature-next-btn {
           position: absolute;
           right: 14px;
@@ -1072,7 +1147,7 @@ export default function BuyerDashboardPage() {
 
         @media (max-width: 900px) {
           .hero {
-            min-height: 720px;
+            min-height: calc(100vh - var(--market-nav-height));
             padding: 72px 0 56px;
           }
           .products-grid {
@@ -1189,7 +1264,7 @@ export default function BuyerDashboardPage() {
             className="hero"
             style={{ "--hero-parallax-y": `${heroParallaxY}px` } as CSSProperties}
           >
-            <div className={`hero-left${isHeroReady ? " is-ready" : ""}`}>
+            <div className="hero-left is-ready">
               <div className="pill">
                 <div className="pill-dot" />
                 B2B Marketplace
@@ -1214,7 +1289,8 @@ export default function BuyerDashboardPage() {
           </section>
 
           {/* PRODUCTS */}
-          <section className="products-section">
+          <section id="view-produk" className="products-section">
+            <div ref={productsContentRef} className="reveal-section delay-2">
             <div className="products-header">
               <div>
                 <div className="section-eyebrow">
@@ -1233,6 +1309,7 @@ export default function BuyerDashboardPage() {
               </div>
             </div>
 
+            {hasProducts ? (
             <div className="products-grid-wrap">
               <button
                 className="slide-circle-btn products-nav-btn prev"
@@ -1269,8 +1346,8 @@ export default function BuyerDashboardPage() {
                       alt={prevProduct.title}
                       fill
                       className="feature-media-image"
-                      quality={55}
-                      sizes="(max-width: 900px) 100vw, 540px"
+                      quality={45}
+                      sizes="(max-width: 900px) 100vw, 34vw"
                     />
                   </div>
                   <div className="feature-content">
@@ -1287,7 +1364,7 @@ export default function BuyerDashboardPage() {
                 </div>
 
                 <div className="product-slot primary">
-                <article className="feature-card primary">
+                <Link href={`/products/${leftProduct.slug}?from=home`} className="feature-card primary">
                   <div className="feature-media">
                     <Image
                       src={leftProduct.media}
@@ -1295,8 +1372,8 @@ export default function BuyerDashboardPage() {
                       fill
                       loading="eager"
                       className="feature-media-image"
-                      quality={55}
-                      sizes="(max-width: 900px) 100vw, 540px"
+                      quality={50}
+                      sizes="(max-width: 900px) 100vw, 48vw"
                     />
                   </div>
                   <div className="feature-content">
@@ -1310,19 +1387,19 @@ export default function BuyerDashboardPage() {
                       <p className="feature-origin">{leftProduct.origin}</p>
                     </div>
                   </div>
-                </article>
+                </Link>
                 </div>
 
                 <div className="product-slot secondary">
-                <article className="feature-card secondary">
+                <Link href={`/products/${rightProduct.slug}?from=home`} className="feature-card secondary">
                   <div className="feature-media">
                     <Image
                       src={rightProduct.media}
                       alt={rightProduct.title}
                       fill
                       className="feature-media-image"
-                      quality={55}
-                      sizes="(max-width: 900px) 100vw, 420px"
+                      quality={45}
+                      sizes="(max-width: 900px) 100vw, 38vw"
                     />
                   </div>
                   <div className="feature-content">
@@ -1336,19 +1413,19 @@ export default function BuyerDashboardPage() {
                       <p className="feature-origin">{rightProduct.origin}</p>
                     </div>
                   </div>
-                </article>
+                </Link>
                 </div>
 
                 <div className="product-slot peek">
-                <article className="feature-card peek">
+                <Link href={`/products/${peekProduct.slug}?from=home`} className="feature-card peek">
                   <div className="feature-media">
                     <Image
                       src={peekProduct.media}
                       alt={peekProduct.title}
                       fill
                       className="feature-media-image"
-                      quality={50}
-                      sizes="(max-width: 900px) 100vw, 360px"
+                      quality={40}
+                      sizes="(max-width: 900px) 100vw, 22vw"
                     />
                   </div>
                   <div className="feature-content">
@@ -1362,19 +1439,19 @@ export default function BuyerDashboardPage() {
                       <p className="feature-origin">{peekProduct.origin}</p>
                     </div>
                   </div>
-                </article>
+                </Link>
                 </div>
 
                 <div className="product-slot incoming">
-                <article className="feature-card peek">
+                <Link href={`/products/${incomingProduct.slug}?from=home`} className="feature-card peek">
                   <div className="feature-media">
                     <Image
                       src={incomingProduct.media}
                       alt={incomingProduct.title}
                       fill
                       className="feature-media-image"
-                      quality={50}
-                      sizes="(max-width: 900px) 100vw, 360px"
+                      quality={40}
+                      sizes="(max-width: 900px) 100vw, 22vw"
                     />
                   </div>
                   <div className="feature-content">
@@ -1388,13 +1465,31 @@ export default function BuyerDashboardPage() {
                       <p className="feature-origin">{incomingProduct.origin}</p>
                     </div>
                   </div>
-                </article>
+                </Link>
                 </div>
               </div>
             </div>
+            ) : (
+            <div
+              style={{
+                padding: "32px 20px",
+                textAlign: "center",
+                color: "#6b7280",
+                fontSize: "15px",
+                maxWidth: "560px",
+                margin: "0 auto",
+                lineHeight: 1.55,
+              }}
+            >
+              Belum ada produk di katalog.
+            </div>
+            )}
+            </div>
           </section>
 
+          {favoriteProducts.length > 0 ? (
           <section className="products-section favorite-section">
+            <div ref={favoritesContentRef} className="reveal-section delay-3">
             <div className="products-header">
               <div>
                 <div className="section-eyebrow">
@@ -1427,16 +1522,21 @@ export default function BuyerDashboardPage() {
                 </>
               )}
               <div className="favorite-grid">
-                {(isMobileView ? [activeFavoriteProduct] : favoriteProducts).map((item) => (
-                  <article key={item.title} className="favorite-card">
+                {(isMobileView
+                  ? activeFavoriteProduct
+                    ? [activeFavoriteProduct]
+                    : []
+                  : favoriteProducts
+                ).map((item) => (
+                  <Link key={item.slug} href={`/products/${item.slug}?from=home`} className="favorite-card">
                     <div className="feature-media">
                       <Image
                         src={item.media}
                         alt={item.title}
                         fill
                         className="feature-media-image"
-                        quality={55}
-                        sizes="(max-width: 900px) 100vw, 380px"
+                        quality={45}
+                        sizes="(max-width: 900px) 100vw, 31vw"
                       />
                     </div>
                     <div className="favorite-content">
@@ -1444,11 +1544,13 @@ export default function BuyerDashboardPage() {
                       <p className="favorite-price">{item.price}</p>
                       <p className="favorite-origin">{item.origin}</p>
                     </div>
-                  </article>
+                  </Link>
                 ))}
               </div>
             </div>
+            </div>
           </section>
+          ) : null}
 
           <section
             ref={aboutSectionRef}
@@ -1458,7 +1560,7 @@ export default function BuyerDashboardPage() {
               "--about-foreground-y": `${aboutParallaxY * -0.18}px`,
             } as CSSProperties}
           >
-            <div className="about-inner">
+            <div ref={aboutContentRef} className="about-inner reveal-section delay-4">
               <div className="about-layout">
               <div className="about-left">
                 <div className="about-eyebrow">
@@ -1527,7 +1629,7 @@ export default function BuyerDashboardPage() {
           </section>
 
           <section className="office-section">
-            <div className="office-inner">
+            <div ref={officeContentRef} className="office-inner reveal-section delay-4">
               <div className="office-header">
                 <div className="office-heading">
                   <h2 className="office-title">Visit Our Office</h2>
@@ -1545,20 +1647,6 @@ export default function BuyerDashboardPage() {
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                   />
-                </div>
-                <div className="office-grid">
-                  <article className="office-item">
-                    <p className="office-label">Business Hours</p>
-                    <p className="office-value">Monday - Friday, 09.00 - 17.00 WIB</p>
-                  </article>
-                  <article className="office-item">
-                    <p className="office-label">Email</p>
-                    <p className="office-value">info@telagacipta.co.id</p>
-                  </article>
-                  <article className="office-item">
-                    <p className="office-label">Phone</p>
-                    <p className="office-value">+62 21 1234 5678</p>
-                  </article>
                 </div>
               </div>
             </div>

@@ -5,94 +5,27 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import GlobalFooter from "@/components/GlobalFooter";
+import { alertFailBanner } from "@/lib/alertFailBanner";
 
-type ProductItem = {
-  title: string;
+type CatalogItem = {
   slug: string;
+  title: string;
   description: string;
   origin: string;
+  seller: string;
   price: string;
+  unit: string;
   image: string;
   favorite: boolean;
+  stock: number;
 };
-
-const productItems: ProductItem[] = [
-  {
-    title: "Giant Ginger",
-    slug: "jahe-gajah",
-    description: "Selected fresh rhizomes for seasoning and herbal beverages.",
-    origin: "Central Java",
-    price: "Rp 18.600,00",
-    image: "/images/products/jahe-gajah.jpg",
-    favorite: true,
-  },
-  {
-    title: "Dried Cloves",
-    slug: "cengkeh-kering",
-    description: "Export-grade cloves with strong aroma for food industry needs.",
-    origin: "Maluku",
-    price: "Rp 20.000,00",
-    image: "/images/products/cengkeh.jpg",
-    favorite: true,
-  },
-  {
-    title: "Fresh Turmeric",
-    slug: "kunyit-segar",
-    description: "Fresh turmeric with vibrant color for culinary and herbal use.",
-    origin: "East Java",
-    price: "Rp 14.000,00",
-    image: "/images/products/kunyit.jpg",
-    favorite: false,
-  },
-  {
-    title: "Black Pepper",
-    slug: "lada-hitam",
-    description: "Premium black peppercorns with a bold and distinctive taste.",
-    origin: "Lampung",
-    price: "Rp 100.000,00",
-    image: "/images/products/lada-hitam.jpg",
-    favorite: true,
-  },
-  {
-    title: "Cinnamon",
-    slug: "kayu-manis",
-    description: "Dried cinnamon sticks with a warm, naturally sweet aroma.",
-    origin: "Kerinci",
-    price: "Rp 54.000,00",
-    image: "/images/products/kayu-manis.jpg",
-    favorite: false,
-  },
-  {
-    title: "Dried Nutmeg",
-    slug: "pala-kering",
-    description: "Selected dried nutmeg for food and beverage ingredients.",
-    origin: "Banda",
-    price: "Rp 88.000,00",
-    image: "/images/products/pala-kering.jpg",
-    favorite: true,
-  },
-  {
-    title: "Coffee Beans",
-    slug: "biji-kopi",
-    description: "Selected coffee beans with a balanced and rich flavor profile.",
-    origin: "Toraja",
-    price: "Rp 76.000,00",
-    image: "/images/products/biji-kopi.jpg",
-    favorite: false,
-  },
-  {
-    title: "Cardamom",
-    slug: "kapulaga",
-    description: "High-quality cardamom for spice blends and beverages.",
-    origin: "West Java",
-    price: "Rp 112.000,00",
-    image: "/images/products/kapulaga.jpg",
-    favorite: true,
-  },
-];
 
 export default function BuyerProductsPage() {
   const searchParams = useSearchParams();
+  const [items, setItems] = useState<CatalogItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"latest" | "favorite" | "priceHigh" | "priceLow">(
     parseFilter(searchParams.get("filter"))
@@ -102,24 +35,52 @@ export default function BuyerProductsPage() {
     setFilter(parseFilter(searchParams.get("filter")));
   }, [searchParams]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const res = await fetch("/api/products");
+        const data = (await res.json()) as { products?: CatalogItem[]; message?: string };
+        if (!res.ok) {
+          if (!cancelled) setLoadError(data.message ?? "Gagal memuat produk.");
+          if (!cancelled) setItems([]);
+          return;
+        }
+        if (!cancelled) setItems(data.products ?? []);
+      } catch {
+        if (!cancelled) {
+          setLoadError("Tidak dapat terhubung ke server.");
+          setItems([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filteredProducts = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    let items = productItems.filter((item) =>
+    let list = items.filter((item) =>
       [item.title, item.description, item.origin].join(" ").toLowerCase().includes(keyword)
     );
     if (filter === "favorite") {
-      items = items.filter((item) => item.favorite);
+      list = list.filter((item) => item.favorite);
     }
 
     if (filter === "priceLow") {
-      items = [...items].sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
+      list = [...list].sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
     }
     if (filter === "priceHigh") {
-      items = [...items].sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
+      list = [...list].sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
     }
 
-    return items;
-  }, [query, filter]);
+    return list;
+  }, [items, query, filter]);
 
   return (
     <>
@@ -131,21 +92,23 @@ export default function BuyerProductsPage() {
           font-family: 'Plus Jakarta Sans', sans-serif;
         }
         .product-wrap {
-          max-width: 1200px;
+          max-width: var(--content-max-width);
+          width: 100%;
           margin: 0 auto;
-          padding: 34px 24px 64px;
+          padding: 40px var(--content-gutter) 72px;
+          animation: productPageIn 0.45s ease-out both;
         }
         .product-title {
           margin: 0 0 6px;
-          font-size: 42px;
+          font-size: 48px;
           line-height: 1.08;
           letter-spacing: -0.7px;
           color: #1f2937;
         }
         .product-subtitle {
-          margin: 0 0 22px;
+          margin: 0 0 26px;
           color: #6b7280;
-          font-size: 14px;
+          font-size: 15px;
         }
         .toolbar {
           display: grid;
@@ -192,12 +155,14 @@ export default function BuyerProductsPage() {
         .product-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 24px 16px;
+          gap: 28px 22px;
         }
         .product-card {
           text-decoration: none;
           color: inherit;
           display: block;
+          opacity: 0;
+          animation: productCardIn 0.4s ease-out forwards;
         }
         .product-image-wrap {
           position: relative;
@@ -239,11 +204,34 @@ export default function BuyerProductsPage() {
           margin: 0;
           font-size: 20px;
           letter-spacing: -0.4px;
-          color: #b45309;
+          color: #000000;
           font-weight: 700;
         }
-        @media (max-width: 1080px) {
+        @keyframes productPageIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes productCardIn {
+          from {
+            opacity: 0;
+            transform: translateY(16px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @media (max-width: 1320px) {
           .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 1080px) {
+          .product-wrap { padding: 36px 32px 64px; }
         }
         @media (max-width: 820px) {
           .toolbar {
@@ -266,8 +254,36 @@ export default function BuyerProductsPage() {
         <main className="product-wrap">
           <h1 className="product-title">All Products</h1>
           <p className="product-subtitle">
-            Discover premium products from our catalog ({filteredProducts.length} products)
+            {loading
+              ? "Memuat katalog…"
+              : loadError
+                ? "Katalog tidak dapat dimuat."
+                : filter === "latest"
+                  ? `Semua produk diurutkan dari yang paling baru (${filteredProducts.length} produk).`
+                  : `Discover premium products from our catalog (${filteredProducts.length} products)`}
           </p>
+
+          {!loading && loadError ? (
+            <div
+              role="alert"
+              style={{
+                ...alertFailBanner,
+                marginBottom: 16,
+                alignItems: "flex-start",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: 2 }}>
+                <path
+                  d="M18 6L6 18M6 6l12 12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span style={{ flex: 1, minWidth: 0, lineHeight: 1.45 }}>{loadError}</span>
+            </div>
+          ) : null}
 
           <div className="toolbar">
             <label className="search-box" aria-label="Search products">
@@ -285,6 +301,7 @@ export default function BuyerProductsPage() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search products..."
+                disabled={loading}
               />
             </label>
 
@@ -295,6 +312,7 @@ export default function BuyerProductsPage() {
                 setFilter(event.target.value as "latest" | "favorite" | "priceHigh" | "priceLow")
               }
               aria-label="Filter products"
+              disabled={loading}
             >
               <option value="latest">Latest</option>
               <option value="favorite">Favorite</option>
@@ -309,9 +327,20 @@ export default function BuyerProductsPage() {
             </select>
           </div>
 
+          {!loading && !loadError && filteredProducts.length === 0 ? (
+            <p style={{ color: "#6b7280", fontSize: "15px", padding: "24px 0" }}>
+              Belum ada produk di katalog.
+            </p>
+          ) : null}
+
           <section className="product-grid">
             {filteredProducts.map((item, index) => (
-              <Link key={item.slug} className="product-card" href={`/products/${item.slug}`}>
+              <Link
+                key={item.slug}
+                className="product-card"
+                href={`/products/${item.slug}?from=products`}
+                style={{ animationDelay: `${Math.min(index, 11) * 45}ms` }}
+              >
                 <div className="product-image-wrap">
                   <Image
                     src={item.image}
@@ -319,13 +348,13 @@ export default function BuyerProductsPage() {
                     fill
                     className="product-image"
                     loading={index === 0 ? "eager" : "lazy"}
-                    quality={75}
-                    sizes="(max-width: 540px) 100vw, (max-width: 820px) 50vw, (max-width: 1080px) 33vw, 25vw"
+                    quality={55}
+                    sizes="(max-width: 540px) calc(100vw - 28px), (max-width: 820px) 50vw, (max-width: 1080px) 33vw, 24vw"
                   />
                 </div>
                 <h2 className="product-name">{item.title}</h2>
                 <p className="product-desc">{item.description}</p>
-                <p className="product-origin">Origin: {item.origin}</p>
+                <p className="product-origin">{item.origin}</p>
                 <p className="product-price">{item.price}</p>
               </Link>
             ))}
