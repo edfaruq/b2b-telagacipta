@@ -14,6 +14,9 @@ export async function GET() {
       `SELECT
          (SELECT COUNT(*) FROM permintaan WHERE status_permintaan = 'menunggu') AS pendingQuotationRequests,
          (SELECT COUNT(*) FROM pembayaran WHERE status_pembayaran = 'menunggu_validasi') AS pendingPayments,
+         (SELECT COUNT(*) FROM pengiriman pg
+            INNER JOIN invoice inv ON inv.id_invoice = pg.id_invoice
+            WHERE inv.status_invoice = 'lunas' AND pg.status_pengiriman = 'diproses') AS pendingShipments,
          (SELECT COUNT(*) FROM pelanggan WHERE status_registrasi = 'pending') AS pendingUserApprovals`
     );
 
@@ -21,6 +24,7 @@ export async function GET() {
       rows as Array<{
         pendingQuotationRequests: number;
         pendingPayments: number;
+        pendingShipments: number;
         pendingUserApprovals: number;
       }>
     )[0];
@@ -28,6 +32,7 @@ export async function GET() {
     return NextResponse.json({
       pendingQuotationRequests: Number(row?.pendingQuotationRequests) || 0,
       pendingPayments: Number(row?.pendingPayments) || 0,
+      pendingShipments: Number(row?.pendingShipments) || 0,
       pendingUserApprovals: Number(row?.pendingUserApprovals) || 0,
     });
   } catch {

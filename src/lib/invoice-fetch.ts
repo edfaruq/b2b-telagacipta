@@ -31,9 +31,10 @@ export type BuyerInvoiceRecord = {
     total: string;
   };
   payment: {
+    id: number;
     status: string | null;
     proofUrl: string | null;
-    rejectionNote: string | null;
+    receiptNumber: string | null;
   } | null;
 };
 
@@ -65,7 +66,6 @@ export async function fetchBuyerInvoice(
        pb.id_pembayaran,
        pb.status_pembayaran,
        pb.bukti_pembayaran,
-       pb.catatan_validasi,
        pb.nomor_receipt,
        (SELECT COUNT(*)
         FROM permintaan x
@@ -105,7 +105,6 @@ export async function fetchBuyerInvoice(
       id_pembayaran: number | null;
       status_pembayaran: string | null;
       bukti_pembayaran: string | null;
-      catatan_validasi: string | null;
       nomor_receipt: string | null;
       request_sequence: string | number;
     }>
@@ -168,7 +167,6 @@ export async function fetchBuyerInvoice(
           id: row.id_pembayaran!,
           status: row.status_pembayaran,
           proofUrl: row.bukti_pembayaran,
-          rejectionNote: row.catatan_validasi,
           receiptNumber: row.nomor_receipt,
         }
       : null,

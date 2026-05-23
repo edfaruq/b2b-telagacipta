@@ -15,10 +15,6 @@ export function paymentStatusLabel(status: string): string {
 }
 
 /** Shown to buyer when admin rejects payment proof. */
-export function paymentRejectedMessage(adminNote?: string | null): string {
-  const base =
-    "Your payment was not validated. Please transfer the amount due again and upload a new payment proof.";
-  const note = adminNote?.trim();
-  if (!note) return base;
-  return `${base} Admin note: ${note}`;
+export function paymentRejectedMessage(): string {
+  return "Your payment was not validated. Please transfer the amount due again and upload a new payment proof.";
 }

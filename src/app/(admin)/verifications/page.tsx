@@ -3,12 +3,8 @@
 import { useEffect, useState } from "react";
 import { AdminAccountShell, type AdminMenuKey } from "@/components/admin/AdminAccountShell";
 import { CreateProduct } from "@/components/admin/CreateProduct";
+import { ManageOrdersPanel } from "@/components/admin/ManageOrdersPanel";
 import { ManageProducts } from "@/components/admin/ManageProducts";
-import { PendingPaymentsPanel } from "@/components/admin/PendingPaymentsPanel";
-import {
-  PendingQuotationsPanel,
-  type PendingQuotationRow,
-} from "@/components/admin/PendingQuotationsPanel";
 import { alertFailBanner } from "@/lib/alertFailBanner";
 
 type UserRow = {
@@ -126,22 +122,10 @@ const IconClock = () => (
   </svg>
 );
 
-const IconQuotation = () => (
+const IconOrders = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
     <path
-      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-      stroke="currentColor"
-      strokeWidth="1.85"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const IconPayment = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-    <path
-      d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"
+      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4"
       stroke="currentColor"
       strokeWidth="1.85"
       strokeLinecap="round"
@@ -184,7 +168,6 @@ const IconList = () => (
 export default function AdminVerificationsPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [pendingUsers, setPendingUsers] = useState<UserRow[]>([]);
-  const [pendingQuotations, setPendingQuotations] = useState<PendingQuotationRow[]>([]);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"success" | "error">("error");
   const [loading, setLoading] = useState(true);
@@ -227,47 +210,13 @@ export default function AdminVerificationsPage() {
     }
   };
 
-  const fetchQuotationsData = async (isManual = false) => {
-    if (isManual) setRefreshing(true);
-    else setLoading(true);
-    try {
-      const quotationsRes = await fetch("/api/admin/quotations", { cache: "no-store" });
-      const quotationsResult = (await quotationsRes.json()) as {
-        quotations?: PendingQuotationRow[];
-        message?: string;
-      };
-      if (!quotationsRes.ok) {
-        setMessage(quotationsResult.message ?? "Failed to load quotation requests.");
-        setMessageTone("error");
-        setPendingQuotations([]);
-        return;
-      }
-      setPendingQuotations(quotationsResult.quotations ?? []);
-    } catch {
-      setMessage("Unable to connect to the server.");
-      setMessageTone("error");
-      setPendingQuotations([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
   useEffect(() => {
     setMessage("");
     if (activeMenu === "user-dashboard") {
       setSelectedUser(null);
       fetchUserData();
-    } else if (activeMenu === "pending-quotations") {
-      fetchQuotationsData();
     }
   }, [activeMenu]);
-
-  const handleSendQuotationDone = async () => {
-    setMessage("Quotation sent to customer successfully.");
-    setMessageTone("success");
-    await fetchQuotationsData();
-  };
 
   const handleRegistrationAction = async (idPelanggan: number, action: "approve" | "reject") => {
     setMessage("");
@@ -301,14 +250,9 @@ export default function AdminVerificationsPage() {
     { key: "create-product" as const, label: "Create Products", icon: <IconPackagePlus /> },
     { key: "manage-product" as const, label: "Manage Products", icon: <IconList /> },
     {
-      key: "pending-quotations" as const,
-      label: "Pending Request Quotation",
-      icon: <IconQuotation />,
-    },
-    {
-      key: "pending-payments" as const,
-      label: "Payment Validation",
-      icon: <IconPayment />,
+      key: "manage-orders" as const,
+      label: "Manage Orders",
+      icon: <IconOrders />,
     },
   ];
 
@@ -727,19 +671,8 @@ export default function AdminVerificationsPage() {
             </div>
           ) : null}
           </>
-          ) : activeMenu === "pending-quotations" ? (
-          <PendingQuotationsPanel
-            quotations={pendingQuotations}
-            loading={loading}
-            refreshing={refreshing}
-            processingKey={processingKey}
-            message={message}
-            messageTone={messageTone}
-            onRefresh={() => fetchQuotationsData(true)}
-            onSendQuotation={handleSendQuotationDone}
-          />
-          ) : activeMenu === "pending-payments" ? (
-          <PendingPaymentsPanel />
+          ) : activeMenu === "manage-orders" ? (
+          <ManageOrdersPanel />
           ) : activeMenu === "create-product" ? (
           <CreateProduct />
           ) : (

@@ -131,7 +131,12 @@ function PaymentsLoadingSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
-export function PendingPaymentsPanel() {
+type Props = {
+  embedded?: boolean;
+  onActivity?: () => void;
+};
+
+export function PendingPaymentsPanel({ embedded = false, onActivity }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
@@ -184,6 +189,7 @@ export function PendingPaymentsPanel() {
       setMessage(data.message ?? "Payment updated.");
       setMessageTone("success");
       await load();
+      onActivity?.();
     } catch {
       setMessage("Could not reach the server.");
       setMessageTone("error");
@@ -205,12 +211,14 @@ export function PendingPaymentsPanel() {
         }
       `}</style>
 
-      <header className="pay-header">
-        <h1 style={{ margin: "0 0 4px", fontSize: "32px", color: "#051c4a" }}>Payment Validation</h1>
-        <p style={{ margin: "7px 0 18px", color: "#6a84b0", fontSize: "17px" }}>
-          Validate buyer payment proofs to unlock invoice PDF download.
-        </p>
-      </header>
+      {!embedded ? (
+        <header className="pay-header">
+          <h1 style={{ margin: "0 0 4px", fontSize: "32px", color: "#051c4a" }}>Payment Validation</h1>
+          <p style={{ margin: "7px 0 18px", color: "#6a84b0", fontSize: "17px" }}>
+            Validate buyer payment proofs to unlock invoice PDF download.
+          </p>
+        </header>
+      ) : null}
 
       {message ? (
         <div

@@ -1,5 +1,5 @@
-import { BuyerMyQuotationPanel } from "@/components/buyer/BuyerMyQuotationPanel";
+import { redirect } from "next/navigation";
 
-export default function AccountMyQuotationPage() {
-  return <BuyerMyQuotationPanel />;
+export default function AccountMyOrdersRedirectPage() {
+  redirect("/account/my-orders");
 }

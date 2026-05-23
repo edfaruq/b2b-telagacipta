@@ -75,9 +75,7 @@ export async function GET(_request: Request, context: RouteContext) {
         paymentPending: paymentStatus === "menunggu_validasi",
         paymentRejected: paymentStatus === "ditolak",
         paymentRejectedMessage:
-          paymentStatus === "ditolak"
-            ? paymentRejectedMessage(row.payment?.rejectionNote)
-            : null,
+          paymentStatus === "ditolak" ? paymentRejectedMessage() : null,
       },
     });
   } catch {

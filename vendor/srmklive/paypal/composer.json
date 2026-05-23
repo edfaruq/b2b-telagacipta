@@ -1,0 +1,61 @@
+{
+    "name": "srmklive/paypal",
+    "type": "library",
+    "description": "PayPal REST API client for Laravel and standalone PHP.",
+    "keywords": [
+        "PayPal",
+        "Laravel",
+        "payments",
+        "rest api"
+    ],
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "guzzlehttp/guzzle": "^7.9",
+        "guzzlehttp/psr7": "^2.0",
+        "illuminate/support": "^12.0|^13.0",
+        "nesbot/carbon": "^3.0",
+        "psr/http-client": "^1.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/framework": "^12.0|^13.0",
+        "laravel/pint": "^1.29",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.0",
+        "phpunit/phpunit": "^11.0|^12.0",
+        "symfony/var-dumper": "^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Srmklive\\PayPal\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Srmklive\\PayPal\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "audit": {
+            "ignore": [
+                "PKSA-5jz8-6tcw-pbk4",
+                "PKSA-z3gr-8qht-p93v"
+            ]
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Srmklive\\PayPal\\Providers\\PayPalServiceProvider"
+            ],
+            "aliases": {
+                "PayPal": "Srmklive\\PayPal\\Facades\\PayPal"
+            }
+        }
+    }
+}

@@ -264,7 +264,7 @@ export function BuyerQuotationsPanel() {
       }
       if (action === "accept") {
         setActionMessage(data.message ?? "Quotation accepted. Invoice generated.");
-        router.push("/account/my-quotation");
+        router.push("/account/my-orders");
         return;
       }
       setActionMessage(data.message ?? "Quotation updated.");

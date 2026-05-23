@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { computeTotalPenawaran, formatPenawaranFields } from "@/lib/penawaran";
 import type { PendingQuotationRow } from "@/components/admin/PendingQuotationsPanel";
 
@@ -37,6 +38,8 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
   const [expeditionChoice, setExpeditionChoice] = useState<string>(EXPEDITION_OPTIONS[0]);
   const [expeditionOther, setExpeditionOther] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [ratesMock, setRatesMock] = useState(false);
   const [error, setError] = useState("");
 
   const expeditionValue =
@@ -49,8 +52,17 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
     setBiayaInput("0");
     setExpeditionChoice(EXPEDITION_OPTIONS[0]);
     setExpeditionOther("");
+    setRatesMock(false);
     setError("");
   }, [row.id_permintaan, indicativeUnit]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   const hargaTon = parseAmountInput(hargaInput);
   const biayaPengiriman = parseAmountInput(biayaInput);
@@ -67,6 +79,56 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
     total,
     row.satuan
   );
+
+  const handleEstimateShipping = async () => {
+    if (!expeditionValue) {
+      setError("Select expedition before checking Biteship rates.");
+      return;
+    }
+    setRatesLoading(true);
+    setRatesMock(false);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/biteship/rates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_permintaan: row.id_permintaan,
+          expedition: expeditionValue,
+          quantity: row.jumlah_permintaan,
+          destination_country: row.negara,
+        }),
+      });
+      const data = (await res.json()) as {
+        rates?: Array<{ price: number; courierName: string; serviceName: string; company: string; serviceType: string }>;
+        mock?: boolean;
+        message?: string;
+      };
+      if (!res.ok) {
+        setError(data.message ?? "Could not fetch shipping rates.");
+        return;
+      }
+      const list = data.rates ?? [];
+      if (list.length === 0) {
+        setError("No rates returned for this route. Check address or courier.");
+        return;
+      }
+      const needle = expeditionValue.split(/\s+/)[0]?.toLowerCase() ?? "";
+      const match =
+        list.find(
+          (r) =>
+            r.courierName.toLowerCase().includes(needle) ||
+            r.company.toLowerCase().includes(needle) ||
+            expeditionValue.toLowerCase().includes(r.courierName.toLowerCase())
+        ) ?? list[0];
+      setBiayaInput(String(Math.round(match.price)));
+      setRatesMock(Boolean(data.mock));
+    } catch {
+      setError("Could not reach Biteship rates API.");
+    } finally {
+      setRatesLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,37 +176,22 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="overlay-anim"
+      className="overlay-anim sq-overlay"
+      role="presentation"
       onClick={() => !submitting && onClose()}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(5, 28, 74, 0.40)",
-        backdropFilter: "blur(3px)",
-        display: "grid",
-        placeItems: "center",
-        zIndex: 70,
-        padding: "16px",
-      }}
     >
       <div
-        className="modal-anim"
+        className="sq-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sq-modal-title"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(520px, 100%)",
-          maxHeight: "min(90vh, 720px)",
-          overflowY: "auto",
-          background: "#fff",
-          borderRadius: "16px",
-          border: "1px solid #d0deff",
-          boxShadow: "0 20px 50px rgba(10,40,120,0.22)",
-        }}
       >
         <div className="sq-modal-head">
           <div>
-            <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#051C4A" }}>
+            <h3 id="sq-modal-title" style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#051C4A" }}>
               Send Quotation
             </h3>
             <p style={{ margin: "6px 0 0", fontSize: "14px", color: "#6A84B0" }}>
@@ -162,7 +209,8 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: "20px 22px 22px" }}>
+        <form className="sq-dialog__form" onSubmit={handleSubmit}>
+          <div className="sq-dialog__body">
           {error ? (
             <p
               style={{
@@ -193,17 +241,19 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
             >
               Unit price (per {row.satuan})
             </span>
-            <input
-              type="text"
-              inputMode="decimal"
-              className="sq-input"
-              value={hargaInput}
-              onChange={(e) => setHargaInput(e.target.value)}
-              required
-            />
+            <div className="sq-currency-field">
+              <span className="sq-currency-prefix">Rp</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                className="sq-input sq-currency-input"
+                value={hargaInput}
+                onChange={(e) => setHargaInput(e.target.value)}
+                required
+              />
+            </div>
             <span style={{ fontSize: "12px", color: "#9aa8c7" }}>
-              Indicative: {row.unitPriceLabel}
-              {row.satuan}
+              Indicative: {row.unitPriceLabel} /{row.satuan}
             </span>
           </label>
 
@@ -261,14 +311,31 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
             >
               Shipping cost
             </span>
-            <input
-              type="text"
-              inputMode="decimal"
-              className="sq-input"
-              value={biayaInput}
-              onChange={(e) => setBiayaInput(e.target.value)}
-              required
-            />
+            <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
+              <div className="sq-currency-field" style={{ flex: 1 }}>
+                <span className="sq-currency-prefix">Rp</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="sq-input sq-currency-input"
+                  value={biayaInput}
+                  onChange={(e) => setBiayaInput(e.target.value)}
+                  required
+                />
+              </div>
+              <button
+                type="button"
+                className="acct-btn acct-btn--ghost"
+                disabled={submitting || ratesLoading}
+                onClick={() => void handleEstimateShipping()}
+                style={{ whiteSpace: "nowrap", fontSize: "13px" }}
+              >
+                {ratesLoading ? "Generating…" : "Generate Price"}
+              </button>
+            </div>
+            {ratesMock ? (
+              <span className="sq-mock-rate-label">Mock shipping rate</span>
+            ) : null}
           </label>
 
           <div
@@ -295,16 +362,61 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
               Total quotation: {formatted.totalPenawaranLabel}
             </p>
           </div>
+          </div>
 
-          <div className="acct-btn-group" style={{ justifyContent: "flex-end", marginTop: "8px" }}>
-            <button type="submit" className="acct-btn acct-btn--primary" disabled={submitting}>
-              {submitting ? "Sending…" : "Send to customer"}
-            </button>
+          <div className="sq-dialog__footer">
+            <div className="acct-btn-group" style={{ justifyContent: "flex-end" }}>
+              <button type="submit" className="acct-btn acct-btn--primary" disabled={submitting}>
+                {submitting ? "Sending…" : "Send to customer"}
+              </button>
+            </div>
           </div>
         </form>
       </div>
 
       <style>{`
+        .sq-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 70;
+          background: rgba(5, 28, 74, 0.4);
+          backdrop-filter: blur(3px);
+          overflow-y: auto;
+          display: flex;
+          justify-content: center;
+          padding: max(24px, env(safe-area-inset-top, 0px)) 16px 32px;
+          box-sizing: border-box;
+          font-family: "Plus Jakarta Sans", sans-serif;
+        }
+        .sq-dialog {
+          margin: auto;
+          width: min(520px, calc(100vw - 32px));
+          max-height: min(90vh, 720px);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #d0deff;
+          box-shadow: 0 20px 50px rgba(10, 40, 120, 0.22);
+        }
+        .sq-dialog__form {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+        }
+        .sq-dialog__body {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          padding: 20px 22px;
+        }
+        .sq-dialog__footer {
+          flex-shrink: 0;
+          padding: 0 22px 22px;
+          border-top: 1px solid #edf2ff;
+        }
         .sq-modal-head {
           display: flex;
           align-items: flex-start;
@@ -325,17 +437,44 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
           line-height: 1;
           cursor: pointer;
           flex-shrink: 0;
+          font-family: inherit;
         }
         .sq-close:disabled { opacity: 0.5; cursor: not-allowed; }
+        .sq-currency-field {
+          display: flex;
+          align-items: stretch;
+          margin-bottom: 4px;
+        }
+        .sq-currency-prefix {
+          display: inline-flex;
+          align-items: center;
+          padding: 0 12px;
+          font-size: 15px;
+          font-weight: 600;
+          color: #6a84b0;
+          background: #f7faff;
+          border: 1px solid #d0deff;
+          border-right: none;
+          border-radius: 10px 0 0 10px;
+          user-select: none;
+        }
+        .sq-currency-input {
+          flex: 1;
+          min-width: 0;
+          border-radius: 0 10px 10px 0 !important;
+        }
         .sq-input {
           width: 100%;
           padding: 11px 14px;
           border: 1px solid #d0deff;
           border-radius: 10px;
           font-size: 15px;
-          font-family: 'Plus Jakarta Sans', sans-serif;
+          font-family: inherit;
           color: #1a3566;
           margin-bottom: 4px;
+        }
+        .sq-currency-field .sq-input {
+          margin-bottom: 0;
         }
         .sq-input:focus {
           outline: none;
@@ -346,7 +485,19 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
           cursor: pointer;
           appearance: auto;
         }
+        .sq-mock-rate-label {
+          display: inline-block;
+          margin-top: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #92400e;
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-radius: 6px;
+          padding: 2px 8px;
+        }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }

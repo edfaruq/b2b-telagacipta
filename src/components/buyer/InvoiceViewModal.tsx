@@ -169,8 +169,7 @@ export function InvoiceViewModal({ invoiceId, onClose, onPayAgain }: Props) {
 
               {invoice.paymentPending ? (
                 <p className="inv-pending-msg">
-                  Payment proof submitted — awaiting admin validation. PDF download unlocks after
-                  approval.
+                  Payment proof submitted. We will validate your payment shortly.
                 </p>
               ) : null}
 

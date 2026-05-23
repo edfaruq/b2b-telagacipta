@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { SendQuotationModal } from "@/components/admin/SendQuotationModal";
 import { alertFailBanner } from "@/lib/alertFailBanner";
 import { permintaanRequestIdLabel } from "@/lib/permintaan-request-id";
@@ -85,6 +86,7 @@ type Props = {
   messageTone: "success" | "error";
   onRefresh: () => void;
   onSendQuotation: () => Promise<void>;
+  embedded?: boolean;
 };
 
 export function PendingQuotationsPanel({
@@ -96,16 +98,32 @@ export function PendingQuotationsPanel({
   messageTone,
   onRefresh,
   onSendQuotation,
+  embedded = false,
 }: Props) {
   const [selected, setSelected] = useState<PendingQuotationRow | null>(null);
   const [sendTarget, setSendTarget] = useState<PendingQuotationRow | null>(null);
 
+  useEffect(() => {
+    if (!selected) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [selected]);
+
   return (
     <>
-      <h1 style={{ margin: "0 0 4px", fontSize: "32px", color: "#051c4a" }}>Pending Request Quotation</h1>
-      <p style={{ margin: "7px 0 18px", color: "#6a84b0", fontSize: "17px" }}>
-        Review requests and send quotations to customers.
-      </p>
+      {!embedded ? (
+        <>
+          <h1 style={{ margin: "0 0 4px", fontSize: "32px", color: "#051c4a" }}>
+            Pending Request Quotation
+          </h1>
+          <p style={{ margin: "7px 0 18px", color: "#6a84b0", fontSize: "17px" }}>
+            Review requests and send quotations to customers.
+          </p>
+        </>
+      ) : null}
 
       {message ? (
         <div
@@ -266,57 +284,42 @@ export function PendingQuotationsPanel({
         )}
       </div>
 
-      {selected ? (
-        <div
-          className="overlay-anim"
-          onClick={() => setSelected(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(5, 28, 74, 0.40)",
-            backdropFilter: "blur(3px)",
-            display: "grid",
-            placeItems: "center",
-            zIndex: 60,
-            padding: "16px",
-          }}
-        >
-          <div
-            className="modal-anim"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "min(920px, calc(100vw - 32px))",
-              maxHeight: "min(92vh, 860px)",
-              overflowY: "auto",
-              background: "#fff",
-              borderRadius: "16px",
-              border: "1px solid #d0deff",
-              boxShadow: "0 20px 50px rgba(10,40,120,0.22)",
-            }}
-          >
+      {selected
+        ? createPortal(
             <div
-              style={{
-                padding: "14px 18px",
-                borderBottom: "1px solid #edf2ff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: "#f7faff",
-              }}
+              className="overlay-anim pq-detail-overlay"
+              role="presentation"
+              onClick={() => setSelected(null)}
             >
-              <span
-                style={{
-                  fontWeight: 700,
-                  color: "#051C4A",
-                  fontSize: "18px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
+              <div
+                className="overlay-anim pq-detail-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="pq-detail-title"
+                onClick={(e) => e.stopPropagation()}
               >
-                <IconQuotation />
-                {permintaanRequestIdLabel(selected.requestSequence, selected.tanggal_permintaan)}
-              </span>
+                <div className="pq-detail-dialog__header">
+              <div>
+                <span
+                  id="pq-detail-title"
+                  style={{
+                    fontWeight: 700,
+                    color: "#051C4A",
+                    fontSize: "18px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <IconEye />
+                  Request details
+                </span>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#6A84B0" }}>
+                  {permintaanRequestIdLabel(selected.requestSequence, selected.tanggal_permintaan)}
+                  {" · "}
+                  {selected.nama_produk}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setSelected(null)}
@@ -332,131 +335,110 @@ export function PendingQuotationsPanel({
               >
                 <IconClose />
               </button>
-            </div>
-
-            <div style={{ padding: "24px 28px 28px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                {[
-                  { label: "Buyer", value: selected.nama },
-                  { label: "Product", value: selected.nama_produk },
-                  { label: "Institution", value: selected.instansi },
-                  { label: "Email Address", value: selected.email },
-                  { label: "Phone", value: selected.no_telepon },
-                  { label: "Country", value: selected.negara },
-                  {
-                    label: "Quantity",
-                    value: `${selected.jumlah_permintaan} ${selected.satuan}`,
-                  },
-                  {
-                    label: "Unit price",
-                    value: `${selected.unitPriceLabel} /${selected.satuan}`,
-                  },
-                  { label: "Est. total", value: selected.estimatedTotalLabel },
-                  {
-                    label: "Requested",
-                    value: new Date(selected.tanggal_permintaan).toLocaleString("en-US"),
-                  },
-                ].map(({ label, value }) => (
-                  <div
-                    key={label}
-                    style={{
-                      background: "#f7faff",
-                      border: "1px solid #edf2ff",
-                      borderRadius: "8px",
-                      padding: "12px 14px",
-                    }}
-                  >
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: "11px",
-                        color: "#6A84B0",
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      {label}
-                    </p>
-                    <p style={{ margin: 0, fontSize: "15px", color: "#1A3566", fontWeight: 500 }}>{value}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div
-                style={{
-                  marginTop: "12px",
-                  background: "#f7faff",
-                  border: "1px solid #edf2ff",
-                  borderRadius: "8px",
-                  padding: "10px 12px",
-                }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: "11px",
-                    color: "#6A84B0",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    marginBottom: "4px",
-                  }}
-                >
-                  Delivery address
-                </p>
-                <p style={{ margin: 0, fontSize: "14px", color: "#1A3566", fontWeight: 500 }}>
-                  {selected.alamat_tujuan}
-                </p>
-              </div>
-
-              {selected.detail_permintaan.trim() ? (
-                <div
-                  style={{
-                    marginTop: "12px",
-                    background: "#f7faff",
-                    border: "1px solid #edf2ff",
-                    borderRadius: "8px",
-                    padding: "10px 12px",
-                  }}
-                >
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "11px",
-                      color: "#6A84B0",
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    Notes
-                  </p>
-                  <p style={{ margin: 0, fontSize: "14px", color: "#1A3566", fontWeight: 500 }}>
-                    {selected.detail_permintaan}
-                  </p>
                 </div>
-              ) : null}
 
-              <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  className="acct-btn acct-btn--primary"
-                  onClick={() => {
-                    setSendTarget(selected);
-                    setSelected(null);
-                  }}
-                >
-                  <IconQuotation />
-                  Send Quotation
-                </button>
+                <div className="pq-detail-dialog__body">
+              <p style={{ margin: "0 0 16px", fontSize: "14px", color: "#6A84B0", lineHeight: 1.45 }}>
+                Review-only summary. To set price and expedition, use{" "}
+                <strong style={{ color: "#051C4A" }}>Send Quotation</strong> from the table.
+              </p>
+
+              <section style={{ marginBottom: "18px" }}>
+                <h3 className="pq-detail-section-title">Buyer</h3>
+                <dl className="pq-detail-dl">
+                  <div>
+                    <dt>Name</dt>
+                    <dd>{selected.nama}</dd>
+                  </div>
+                  <div>
+                    <dt>Institution</dt>
+                    <dd>{selected.instansi}</dd>
+                  </div>
+                  <div>
+                    <dt>Email</dt>
+                    <dd>{selected.email}</dd>
+                  </div>
+                  <div>
+                    <dt>Phone</dt>
+                    <dd>{selected.no_telepon}</dd>
+                  </div>
+                  <div>
+                    <dt>Country</dt>
+                    <dd>{selected.negara}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section style={{ marginBottom: "18px" }}>
+                <h3 className="pq-detail-section-title">Order</h3>
+                <dl className="pq-detail-dl">
+                  <div>
+                    <dt>Product</dt>
+                    <dd>{selected.nama_produk}</dd>
+                  </div>
+                  <div>
+                    <dt>Quantity</dt>
+                    <dd>
+                      {selected.jumlah_permintaan} {selected.satuan}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Indicative unit price</dt>
+                    <dd>
+                      {selected.unitPriceLabel} /{selected.satuan}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Est. total</dt>
+                    <dd>{selected.estimatedTotalLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>Requested</dt>
+                    <dd>
+                      {new Date(selected.tanggal_permintaan).toLocaleString("en-US", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section>
+                <h3 className="pq-detail-section-title">Delivery</h3>
+                <p className="pq-detail-block">{selected.alamat_tujuan}</p>
+                {selected.detail_permintaan.trim() ? (
+                  <>
+                    <h3 className="pq-detail-section-title" style={{ marginTop: "14px" }}>
+                      Notes
+                    </h3>
+                    <p className="pq-detail-block">{selected.detail_permintaan}</p>
+                  </>
+                ) : null}
+              </section>
+                </div>
+
+                <div className="pq-detail-dialog__footer">
+                  <button type="button" className="acct-btn acct-btn--ghost" onClick={() => setSelected(null)}>
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    className="acct-btn acct-btn--primary"
+                    onClick={() => {
+                      setSendTarget(selected);
+                      setSelected(null);
+                    }}
+                  >
+                    <IconQuotation />
+                    Send quotation
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
 
       {sendTarget ? (
         <SendQuotationModal
@@ -465,6 +447,100 @@ export function PendingQuotationsPanel({
           onSent={onSendQuotation}
         />
       ) : null}
+
+      <style>{`
+        .pq-detail-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 60;
+          background: rgba(5, 28, 74, 0.4);
+          backdrop-filter: blur(3px);
+          overflow-y: auto;
+          display: flex;
+          justify-content: center;
+          padding: max(24px, env(safe-area-inset-top, 0px)) 16px 32px;
+          box-sizing: border-box;
+          font-family: "Plus Jakarta Sans", sans-serif;
+        }
+        .pq-detail-dialog {
+          margin: auto;
+          width: min(920px, calc(100vw - 32px));
+          max-height: min(92vh, 860px);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          background: #fff;
+          border-radius: 16px;
+          border: 1px solid #d0deff;
+          box-shadow: 0 20px 50px rgba(10, 40, 120, 0.22);
+        }
+        .pq-detail-dialog__header {
+          flex-shrink: 0;
+          padding: 14px 18px;
+          border-bottom: 1px solid #edf2ff;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: #f7faff;
+        }
+        .pq-detail-dialog__body {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          padding: 20px 24px;
+        }
+        .pq-detail-dialog__footer {
+          flex-shrink: 0;
+          padding: 14px 18px 18px;
+          border-top: 1px solid #edf2ff;
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          background: #fff;
+        }
+        .pq-detail-section-title {
+          margin: 0 0 10px;
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: #0b47b8;
+        }
+        .pq-detail-dl {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px 20px;
+          margin: 0;
+        }
+        .pq-detail-dl dt {
+          margin: 0 0 4px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: #6a84b0;
+        }
+        .pq-detail-dl dd {
+          margin: 0;
+          font-size: 15px;
+          font-weight: 500;
+          color: #1a3566;
+          line-height: 1.4;
+        }
+        .pq-detail-block {
+          margin: 0;
+          padding: 12px 14px;
+          background: #f7faff;
+          border: 1px solid #edf2ff;
+          border-radius: 8px;
+          font-size: 14px;
+          line-height: 1.5;
+          color: #1a3566;
+        }
+        @media (max-width: 640px) {
+          .pq-detail-dl { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </>
   );
 }

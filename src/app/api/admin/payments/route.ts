@@ -3,6 +3,7 @@ import { formatPriceIdr } from "@/lib/catalog-product";
 import { getServerSession } from "@/lib/get-server-session";
 import { getDbPool } from "@/lib/db";
 import { paymentStatusLabel } from "@/lib/payment-status";
+import { ensurePengirimanForInvoice } from "@/lib/ensure-pengiriman";
 import { generateUniqueReceiptNumber } from "@/lib/receipt-number";
 
 export async function GET() {
@@ -20,7 +21,6 @@ export async function GET() {
          pb.bukti_pembayaran,
          pb.tanggal_pembayaran,
          pb.status_pembayaran,
-         pb.catatan_validasi,
          inv.nomor_invoice,
          inv.total_invoice,
          inv.status_invoice,
@@ -82,7 +82,6 @@ export async function GET() {
 type PatchBody = {
   id_pembayaran?: number;
   action?: "approve" | "reject";
-  note?: string;
 };
 
 export async function PATCH(request: Request) {
@@ -100,8 +99,6 @@ export async function PATCH(request: Request) {
 
   const idPembayaran = Number(body.id_pembayaran);
   const action = body.action === "reject" ? "reject" : body.action === "approve" ? "approve" : null;
-  const note = (body.note ?? "").trim() || null;
-
   if (!Number.isInteger(idPembayaran) || idPembayaran <= 0) {
     return NextResponse.json({ message: "Invalid payment id." }, { status: 400 });
   }
@@ -136,10 +133,10 @@ export async function PATCH(request: Request) {
         const nomorReceipt = await generateUniqueReceiptNumber(conn);
         const [updPay] = await conn.query(
           `UPDATE pembayaran
-           SET status_pembayaran = 'valid', id_admin = ?, catatan_validasi = ?,
+           SET status_pembayaran = 'valid', id_admin = ?,
                nomor_receipt = ?, tanggal_validasi = NOW()
            WHERE id_pembayaran = ? AND status_pembayaran = 'menunggu_validasi'`,
-          [session.userId, note, nomorReceipt, idPembayaran]
+          [session.userId, nomorReceipt, idPembayaran]
         );
         if ((updPay as { affectedRows: number }).affectedRows === 0) {
           await conn.rollback();
@@ -155,12 +152,14 @@ export async function PATCH(request: Request) {
           await conn.rollback();
           return NextResponse.json({ message: "Invoice could not be marked as paid." }, { status: 409 });
         }
+
+        await ensurePengirimanForInvoice(pay.id_invoice, session.userId, conn);
       } else {
         const [updPay] = await conn.query(
           `UPDATE pembayaran
-           SET status_pembayaran = 'ditolak', id_admin = ?, catatan_validasi = ?
+           SET status_pembayaran = 'ditolak', id_admin = ?
            WHERE id_pembayaran = ? AND status_pembayaran = 'menunggu_validasi'`,
-          [session.userId, note, idPembayaran]
+          [session.userId, idPembayaran]
         );
         if ((updPay as { affectedRows: number }).affectedRows === 0) {
           await conn.rollback();

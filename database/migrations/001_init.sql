@@ -72,7 +72,6 @@ CREATE TABLE IF NOT EXISTS pembayaran (
   status_pembayaran ENUM('menunggu_validasi', 'valid', 'ditolak') NOT NULL DEFAULT 'menunggu_validasi',
   nomor_receipt VARCHAR(60) NULL UNIQUE,
   tanggal_validasi DATETIME NULL,
-  catatan_validasi TEXT NULL,
   CONSTRAINT fk_pembayaran_invoice FOREIGN KEY (id_invoice) REFERENCES invoice (id_invoice),
   CONSTRAINT fk_pembayaran_admin FOREIGN KEY (id_admin) REFERENCES admin (id_admin)
 ) ENGINE=InnoDB;

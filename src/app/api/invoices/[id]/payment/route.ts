@@ -83,7 +83,7 @@ export async function POST(request: Request, context: RouteContext) {
         `UPDATE pembayaran
          SET bukti_pembayaran = ?, status_pembayaran = 'menunggu_validasi',
              tanggal_pembayaran = NOW(), id_admin = NULL,
-             catatan_validasi = NULL, nomor_receipt = NULL, tanggal_validasi = NULL
+             nomor_receipt = NULL, tanggal_validasi = NULL
          WHERE id_pembayaran = ?`,
         [saved.publicPath, row.id_pembayaran]
       );
@@ -96,7 +96,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     return NextResponse.json({
-      message: "Payment proof submitted. Admin will validate your payment shortly.",
+      message: "Payment proof submitted. We will validate your payment shortly.",
     });
   } catch {
     return NextResponse.json({ message: "Could not submit payment." }, { status: 500 });

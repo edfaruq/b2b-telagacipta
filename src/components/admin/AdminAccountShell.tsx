@@ -10,8 +10,7 @@ import { profileInitials } from "@/lib/profile-initials";
 
 export type AdminMenuKey =
   | "user-dashboard"
-  | "pending-quotations"
-  | "pending-payments"
+  | "manage-orders"
   | "create-product"
   | "manage-product";
 
@@ -48,6 +47,7 @@ export function AdminAccountShell({ activeMenu, onMenuChange, navItems, children
   const [email, setEmail] = useState("");
   const [pendingQuotationRequests, setPendingQuotationRequests] = useState(0);
   const [pendingPayments, setPendingPayments] = useState(0);
+  const [pendingShipments, setPendingShipments] = useState(0);
   const [pendingUserApprovals, setPendingUserApprovals] = useState(0);
 
   const loadNavBadges = async () => {
@@ -56,11 +56,13 @@ export function AdminAccountShell({ activeMenu, onMenuChange, navItems, children
       const data = (await res.json()) as {
         pendingQuotationRequests?: number;
         pendingPayments?: number;
+        pendingShipments?: number;
         pendingUserApprovals?: number;
       };
       if (res.ok) {
         setPendingQuotationRequests(Number(data.pendingQuotationRequests) || 0);
         setPendingPayments(Number(data.pendingPayments) || 0);
+        setPendingShipments(Number(data.pendingShipments) || 0);
         setPendingUserApprovals(Number(data.pendingUserApprovals) || 0);
       }
     } catch {
@@ -104,14 +106,22 @@ export function AdminAccountShell({ activeMenu, onMenuChange, navItems, children
     const onFocus = () => {
       loadNavBadges();
     };
+    const onBadgesRefresh = () => {
+      loadNavBadges();
+    };
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    window.addEventListener("admin-nav-badges-refresh", onBadgesRefresh);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("admin-nav-badges-refresh", onBadgesRefresh);
+    };
   }, [ready]);
 
   const badgeForMenu = (key: AdminMenuKey): number => {
     if (key === "user-dashboard") return pendingUserApprovals;
-    if (key === "pending-quotations") return pendingQuotationRequests;
-    if (key === "pending-payments") return pendingPayments;
+    if (key === "manage-orders") {
+      return pendingQuotationRequests + pendingPayments + pendingShipments;
+    }
     return 0;
   };
 
@@ -166,11 +176,9 @@ export function AdminAccountShell({ activeMenu, onMenuChange, navItems, children
                 label={
                   item.key === "user-dashboard"
                     ? `${badgeForMenu(item.key)} users awaiting approval`
-                    : item.key === "pending-quotations"
-                      ? `${badgeForMenu(item.key)} pending quotation requests`
-                      : item.key === "pending-payments"
-                        ? `${badgeForMenu(item.key)} payments awaiting validation`
-                        : undefined
+                    : item.key === "manage-orders"
+                      ? `${badgeForMenu(item.key)} order items need attention`
+                      : undefined
                 }
               />
             </button>

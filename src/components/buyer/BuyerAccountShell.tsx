@@ -184,8 +184,8 @@ export function BuyerAccountShell({ children }: Props) {
       badge: pendingRequests,
     },
     {
-      href: "/account/my-quotation",
-      label: "My Quotation",
+      href: "/account/my-orders",
+      label: "My Orders",
       icon: <IconInvoice />,
       exact: false,
       badge: unpaidQuotations,
@@ -226,8 +226,8 @@ export function BuyerAccountShell({ children }: Props) {
                   label={
                     item.href === "/account/quotations"
                       ? `${item.badge} pending requests`
-                      : item.href === "/account/my-quotation"
-                        ? `${item.badge} unpaid quotations`
+                      : item.href === "/account/my-orders"
+                        ? `${item.badge} unpaid orders`
                         : undefined
                   }
                 />
