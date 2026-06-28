@@ -1,0 +1,2 @@
+ALTER TABLE pelanggan
+  ADD COLUMN foto_profil VARCHAR(255) NOT NULL DEFAULT '' AFTER negara;

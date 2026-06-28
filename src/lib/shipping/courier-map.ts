@@ -1,5 +1,5 @@
-/** Map display expedition names (penawaran.ekspedisi) to Biteship courier codes. */
-const EXPEDITION_TO_BITESHIP: Array<{ match: RegExp; company: string; defaultType: string }> = [
+/** Map display expedition names (penawaran.ekspedisi) to courier codes for mock shipping. */
+const EXPEDITION_TO_COURIER: Array<{ match: RegExp; company: string; defaultType: string }> = [
   { match: /jne/i, company: "jne", defaultType: "reg" },
   { match: /j&t|jnt/i, company: "jnt", defaultType: "ez" },
   { match: /sicepat/i, company: "sicepat", defaultType: "reg" },
@@ -15,14 +15,14 @@ const EXPEDITION_TO_BITESHIP: Array<{ match: RegExp; company: string; defaultTyp
   { match: /\bups\b/i, company: "ups", defaultType: "saver" },
 ];
 
-export function mapExpeditionToBiteshipCourier(
+export function mapExpeditionToCourier(
   expedition: string,
   courierTypeOverride?: string
 ): { company: string; type: string } | null {
   const trimmed = expedition.trim();
   if (!trimmed) return null;
 
-  for (const row of EXPEDITION_TO_BITESHIP) {
+  for (const row of EXPEDITION_TO_COURIER) {
     if (row.match.test(trimmed)) {
       return {
         company: row.company,
@@ -47,14 +47,4 @@ export function extractPostalCodeFromAddress(address: string): number | null {
   if (!matches?.length) return null;
   const code = Number(matches[matches.length - 1]);
   return Number.isInteger(code) ? code : null;
-}
-
-export function normalizeIndonesiaPhone(raw: string | number): string {
-  let digits = String(raw).replace(/\D/g, "");
-  if (digits.startsWith("62")) {
-    digits = `0${digits.slice(2)}`;
-  } else if (!digits.startsWith("0")) {
-    digits = `0${digits}`;
-  }
-  return digits.slice(0, 15);
 }

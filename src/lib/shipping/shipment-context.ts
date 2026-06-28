@@ -17,8 +17,6 @@ export type ShipmentContext = {
   nama: string;
   email: string;
   no_telepon: string | number;
-  biteship_order_id: string | null;
-  biteship_courier_code: string | null;
 };
 
 export async function loadShipmentContext(
@@ -30,8 +28,6 @@ export async function loadShipmentContext(
        pg.id_pengiriman,
        pg.id_invoice,
        pg.status_pengiriman,
-       pg.biteship_order_id,
-       pg.biteship_courier_code,
        inv.nomor_invoice,
        inv.total_invoice,
        pw.ekspedisi,

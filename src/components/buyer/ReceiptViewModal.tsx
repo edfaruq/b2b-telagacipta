@@ -10,6 +10,7 @@ export type ReceiptDetail = {
   receiptNumber: string;
   invoiceNumber: string;
   paymentMethod: string;
+  accountDisplay: string | null;
 };
 
 type Props = {
@@ -105,6 +106,12 @@ export function ReceiptViewModal({ invoiceId, onClose }: Props) {
                 <dt>Payment method</dt>
                 <dd className="rcp-method">{receipt.paymentMethod}</dd>
               </div>
+              {receipt.accountDisplay ? (
+                <div className="rcp-row">
+                  <dt>Account</dt>
+                  <dd className="rcp-method">{receipt.accountDisplay}</dd>
+                </div>
+              ) : null}
             </dl>
           </div>
         ) : null}

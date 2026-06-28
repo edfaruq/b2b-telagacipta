@@ -53,6 +53,11 @@ const histAnimStyles = `
     line-height: 1.45;
     max-width: 280px;
   }
+  @media (max-width: 768px) {
+    .hist-feedback {
+      max-width: none;
+    }
+  }
 `;
 
 const IconHistory = () => (

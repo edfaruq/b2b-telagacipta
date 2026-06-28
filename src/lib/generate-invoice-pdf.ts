@@ -174,7 +174,17 @@ export async function generateInvoicePdfBuffer(invoice: BuyerInvoiceRecord): Pro
 
   if (invoice.status === "lunas") {
     drawText(page, "PAID", MARGIN, y, { font: fontBold, size: 11, color: color.green });
-    y -= 22;
+    y -= 18;
+    if (invoice.paymentMethodLabel) {
+      drawText(page, `Payment method: ${invoice.paymentMethodLabel}`, MARGIN, y, {
+        font,
+        size: 10,
+        color: color.muted,
+      });
+      y -= 18;
+    } else {
+      y -= 4;
+    }
   }
 
   y -= 14;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   PendingQuotationsPanel,
   type PendingQuotationRow,
+  type RejectedQuotationRow,
 } from "@/components/admin/PendingQuotationsPanel";
 import { PendingPaymentsPanel } from "@/components/admin/PendingPaymentsPanel";
 import { OrderHistoryPanel } from "@/components/admin/OrderHistoryPanel";
@@ -69,6 +70,7 @@ const tabs: { key: OrderTab; label: string; icon: ReactNode }[] = [
 export function ManageOrdersPanel() {
   const [activeTab, setActiveTab] = useState<OrderTab>("quotations");
   const [quotations, setPendingQuotations] = useState<PendingQuotationRow[]>([]);
+  const [rejectedQuotations, setRejectedQuotations] = useState<RejectedQuotationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processingKey, setProcessingKey] = useState<string | null>(null);
@@ -107,20 +109,24 @@ export function ManageOrdersPanel() {
       const res = await fetch("/api/admin/quotations", { cache: "no-store" });
       const data = (await res.json()) as {
         quotations?: PendingQuotationRow[];
+        rejected?: RejectedQuotationRow[];
         message?: string;
       };
       if (!res.ok) {
         setMessage(data.message ?? "Failed to load quotation requests.");
         setMessageTone("error");
         setPendingQuotations([]);
+        setRejectedQuotations([]);
         return;
       }
       setPendingQuotations(data.quotations ?? []);
+      setRejectedQuotations(data.rejected ?? []);
       if (isManual) setMessage("");
     } catch {
       setMessage("Unable to connect to the server.");
       setMessageTone("error");
       setPendingQuotations([]);
+      setRejectedQuotations([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -164,7 +170,11 @@ export function ManageOrdersPanel() {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .mo-wrap { animation: moPageIn 0.4s ease-out both; }
+        .mo-wrap {
+          animation: moPageIn 0.4s ease-out both;
+          width: 100%;
+          min-width: 0;
+        }
         .mo-tabs {
           display: flex;
           flex-wrap: wrap;
@@ -222,6 +232,28 @@ export function ManageOrdersPanel() {
           border: 1px solid rgba(255, 255, 255, 0.35);
         }
         .mo-tab-badge--empty { display: none; }
+        @media (max-width: 900px) {
+          .mo-tabs {
+            flex-direction: column;
+            align-items: stretch;
+            overflow: visible;
+            gap: 8px;
+          }
+          .mo-tab {
+            width: 100%;
+            flex-shrink: 1;
+            justify-content: flex-start;
+            border-radius: 12px;
+            padding: 12px 16px;
+          }
+        }
+        @media (max-width: 540px) {
+          .mo-tab {
+            font-size: 13px;
+            padding: 11px 14px;
+            gap: 6px;
+          }
+        }
       `}</style>
 
       <header>
@@ -261,6 +293,7 @@ export function ManageOrdersPanel() {
           <PendingQuotationsPanel
             embedded
             quotations={quotations}
+            rejected={rejectedQuotations}
             loading={loading}
             refreshing={refreshing}
             processingKey={processingKey}

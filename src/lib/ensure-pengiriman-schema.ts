@@ -57,13 +57,4 @@ export async function ensurePengirimanSchema(db: Queryable = getDbPool()): Promi
          ADD COLUMN feedback TEXT NULL AFTER rating`
     );
   }
-
-  if (!(await hasColumn(db, "pengiriman", "biteship_order_id"))) {
-    await db.query(
-      `ALTER TABLE pengiriman
-         ADD COLUMN biteship_order_id VARCHAR(64) NULL AFTER nomor_resi,
-         ADD COLUMN biteship_courier_code VARCHAR(40) NULL AFTER biteship_order_id,
-         ADD COLUMN biteship_courier_type VARCHAR(40) NULL AFTER biteship_courier_code`
-    );
-  }
 }

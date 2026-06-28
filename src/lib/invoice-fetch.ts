@@ -2,6 +2,7 @@ import { formatPriceIdr } from "@/lib/catalog-product";
 import { getDbPool } from "@/lib/db";
 import { formatPenawaranFields } from "@/lib/penawaran";
 import { permintaanRequestIdLabel } from "@/lib/permintaan-request-id";
+import { paymentMethodLabel } from "@/lib/payment-method";
 
 export type BuyerInvoiceRecord = {
   id: number;
@@ -33,9 +34,11 @@ export type BuyerInvoiceRecord = {
   payment: {
     id: number;
     status: string | null;
+    method: string | null;
     proofUrl: string | null;
     receiptNumber: string | null;
   } | null;
+  paymentMethodLabel: string | null;
 };
 
 export async function fetchBuyerInvoice(
@@ -65,6 +68,7 @@ export async function fetchBuyerInvoice(
        pw.total_penawaran,
        pb.id_pembayaran,
        pb.status_pembayaran,
+       pb.metode_pembayaran,
        pb.bukti_pembayaran,
        pb.nomor_receipt,
        (SELECT COUNT(*)
@@ -104,6 +108,7 @@ export async function fetchBuyerInvoice(
       total_penawaran: string | number;
       id_pembayaran: number | null;
       status_pembayaran: string | null;
+      metode_pembayaran: string | null;
       bukti_pembayaran: string | null;
       nomor_receipt: string | null;
       request_sequence: string | number;
@@ -166,9 +171,14 @@ export async function fetchBuyerInvoice(
       ? {
           id: row.id_pembayaran!,
           status: row.status_pembayaran,
+          method: row.metode_pembayaran,
           proofUrl: row.bukti_pembayaran,
           receiptNumber: row.nomor_receipt,
         }
       : null,
+    paymentMethodLabel:
+      row.status_invoice === "lunas" && row.status_pembayaran === "valid"
+        ? paymentMethodLabel(row.metode_pembayaran)
+        : null,
   };
 }

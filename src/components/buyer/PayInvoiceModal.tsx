@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { createPortal } from "react-dom";
 import { PayPalInvoiceButton } from "@/components/buyer/PayPalInvoiceButton";
 import { buyerModalAnimStyles } from "@/lib/buyer-modal-anim";
-import { PAYMENT_BANK } from "@/lib/payment-bank";
+import { PAYMENT_BANKS, type PaymentBankAccount } from "@/lib/payment-bank";
 
 const ACCEPTED_PROOF_TYPES = new Set([
   "image/jpeg",
@@ -22,32 +24,6 @@ function IconUpload() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function IconBca() {
-  return (
-    <svg
-      width="44"
-      height="44"
-      viewBox="0 0 44 44"
-      fill="none"
-      aria-hidden
-      className="pay-bca-icon"
-    >
-      <rect width="44" height="44" rx="10" fill="#005BAA" />
-      <text
-        x="22"
-        y="27"
-        textAnchor="middle"
-        fill="#fff"
-        fontSize="13"
-        fontWeight="700"
-        fontFamily="Arial, Helvetica, sans-serif"
-      >
-        BCA
-      </text>
     </svg>
   );
 }
@@ -74,9 +50,28 @@ export function PayInvoiceModal({
   const [submitting, setSubmitting] = useState(false);
   const [paypalBusy, setPaypalBusy] = useState(false);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copiedBankId, setCopiedBankId] = useState<PaymentBankAccount["id"] | null>(null);
+  const [payTab, setPayTab] = useState<"paypal" | "transfer">("paypal");
 
   const busy = submitting || paypalBusy;
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !submitting) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, submitting]);
 
   const clearFile = () => {
     setFile(null);
@@ -114,11 +109,11 @@ export function PayInvoiceModal({
     handleFile(e.dataTransfer.files[0] ?? null);
   };
 
-  const handleCopyAccount = async () => {
+  const handleCopyAccount = async (bank: PaymentBankAccount) => {
     try {
-      await navigator.clipboard.writeText(PAYMENT_BANK.accountNumber);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(bank.accountNumber);
+      setCopiedBankId(bank.id);
+      window.setTimeout(() => setCopiedBankId(null), 2000);
     } catch {
       /* ignore */
     }
@@ -154,39 +149,82 @@ export function PayInvoiceModal({
     }
   };
 
-  return (
-    <div className="pay-overlay buyer-modal-overlay" onClick={() => !busy && onClose()}>
-      <div className="pay-modal buyer-modal-panel" onClick={(e) => e.stopPropagation()}>
+  return createPortal(
+    <div
+      className="pay-overlay buyer-modal-overlay"
+      role="presentation"
+      onClick={() => !submitting && onClose()}
+    >
+      <div
+        className="pay-modal buyer-modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pay-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="pay-modal-head">
           <div>
-            <h2 className="pay-title">Pay invoice</h2>
+            <h2 id="pay-modal-title" className="pay-title">
+              Pay invoice
+            </h2>
             <p className="pay-inv-number">{invoiceNumber}</p>
           </div>
           <button
             type="button"
             className="pay-close"
             onClick={onClose}
-            disabled={busy}
+            disabled={submitting}
             aria-label="Close"
           >
             ×
           </button>
         </div>
 
+        <div className="pay-modal-scroll">
         <div className="pay-amount-box">
           <span className="pay-amount-label">Total to pay</span>
           <p className="pay-amount-value">{totalLabel ?? "—"}</p>
           <p className="pay-amount-note">
-            Pay with PayPal or bank transfer + upload proof.
+            Choose a payment method below.
           </p>
         </div>
 
         {error ? <p className="pay-error pay-error--global">{error}</p> : null}
 
-        <div className="pay-modal-body">
-          <div className="pay-col pay-col--paypal">
+        <div className="pay-tabs-wrap">
+          <div className="pay-tabs" role="tablist" aria-label="Payment method">
+            <button
+              type="button"
+              role="tab"
+              id="pay-tab-paypal"
+              aria-selected={payTab === "paypal"}
+              aria-controls="pay-panel-paypal"
+              className={`pay-tab${payTab === "paypal" ? " is-active" : ""}`}
+              onClick={() => setPayTab("paypal")}
+            >
+              PayPal
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="pay-tab-transfer"
+              aria-selected={payTab === "transfer"}
+              aria-controls="pay-panel-transfer"
+              className={`pay-tab${payTab === "transfer" ? " is-active" : ""}`}
+              onClick={() => setPayTab("transfer")}
+            >
+              Bank transfer
+            </button>
+          </div>
+
+          {payTab === "paypal" ? (
+            <div
+              id="pay-panel-paypal"
+              role="tabpanel"
+              aria-labelledby="pay-tab-paypal"
+              className="pay-tab-panel"
+            >
             <div className="pay-paypal-section">
-              <span className="pay-section-label">Pay with PayPal</span>
               <PayPalInvoiceButton
                 invoiceId={invoiceId}
                 disabled={busy}
@@ -197,74 +235,50 @@ export function PayInvoiceModal({
                 }}
                 onError={(message) => setError(message)}
               />
-
-              <div className="pay-paypal-info">
-                <ul className="pay-paypal-benefits">
-                  <li>
-                    <span className="pay-paypal-icon" aria-hidden>
-                      ⚡
-                    </span>
-                    <span>Payment confirmed automatically</span>
-                  </li>
-                  <li>
-                    <span className="pay-paypal-icon" aria-hidden>
-                      ✓
-                    </span>
-                    <span>No transfer proof upload required</span>
-                  </li>
-                  <li>
-                    <span className="pay-paypal-icon" aria-hidden>
-                      ✓
-                    </span>
-                    <span>Secure checkout via PayPal</span>
-                  </li>
-                </ul>
-
-                <div className="pay-processing-compare">
-                  <p className="pay-processing-title">Processing time</p>
-                  <div className="pay-processing-row pay-processing-row--highlight">
-                    <span className="pay-processing-method">
-                      <span aria-hidden>⚡</span> PayPal
-                    </span>
-                    <span className="pay-processing-time">Instant confirmation</span>
-                  </div>
-                  <div className="pay-processing-row">
-                    <span className="pay-processing-method">
-                      <span aria-hidden>🏦</span> Bank transfer
-                    </span>
-                    <span className="pay-processing-time">Within 24 hours</span>
-                  </div>
-                </div>
-              </div>
             </div>
-          </div>
-
-          <div className="pay-col pay-col--transfer">
-            <p className="pay-col-heading">Bank transfer</p>
-
+            </div>
+          ) : (
+            <div
+              id="pay-panel-transfer"
+              role="tabpanel"
+              aria-labelledby="pay-tab-transfer"
+              className="pay-tab-panel"
+            >
             <div className="pay-transfer-box">
               <span className="pay-section-label">Transfer to</span>
-              <div className="pay-bank-row">
-                <IconBca />
-                <div className="pay-bank-details">
-                  <p className="pay-bank-name">{PAYMENT_BANK.bankName}</p>
-                  <p className="pay-account-number">{PAYMENT_BANK.accountNumber}</p>
-                  <p className="pay-account-holder">{PAYMENT_BANK.accountHolder}</p>
-                </div>
-                <button
-                  type="button"
-                  className="pay-copy-btn"
-                  onClick={handleCopyAccount}
-                  title="Copy account number"
-                >
-                  {copied ? "Copied" : "Copy"}
-                </button>
+              <div className="pay-banks-list">
+                {PAYMENT_BANKS.map((bank) => (
+                  <div key={bank.id} className="pay-bank-row">
+                    <div className="pay-bank-logo-wrap">
+                      <Image
+                        src={bank.logoSrc}
+                        alt=""
+                        width={44}
+                        height={44}
+                        className="pay-bank-logo"
+                      />
+                    </div>
+                    <div className="pay-bank-details">
+                      <p className="pay-bank-name">{bank.bankName}</p>
+                      <p className="pay-account-number">{bank.accountNumber}</p>
+                      <p className="pay-account-holder">{bank.accountHolder}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="pay-copy-btn"
+                      onClick={() => void handleCopyAccount(bank)}
+                      title={`Copy ${bank.bankName} account number`}
+                    >
+                      {copiedBankId === bank.id ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 
             <p className="pay-hint">
-              Transfer the exact amount, then upload your receipt. Admin validates before
-              shipping.
+              Transfer the exact amount, then upload your receipt. Admin validates within 24
+              hours before shipping.
             </p>
 
             <form onSubmit={handleSubmit}>
@@ -318,48 +332,89 @@ export function PayInvoiceModal({
                 </button>
               </div>
             </form>
-          </div>
+            </div>
+          )}
+        </div>
         </div>
       </div>
       <style>{buyerModalAnimStyles}</style>
       <style>{`
         .pay-overlay {
-          position: fixed; inset: 0; z-index: 85;
+          position: fixed;
+          inset: 0;
+          z-index: 85;
           background: rgba(5, 28, 74, 0.4);
           backdrop-filter: blur(3px);
-          display: grid; place-items: center; padding: 16px;
+          overflow-y: auto;
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          padding: max(20px, env(safe-area-inset-top, 0px)) 16px 32px;
+          box-sizing: border-box;
         }
         .pay-modal {
-          width: min(920px, 100%);
-          max-height: none;
+          margin: auto;
+          width: min(560px, 100%);
+          max-height: min(92vh, 900px);
+          display: flex;
+          flex-direction: column;
           overflow: hidden;
           background: #fff;
           border-radius: 16px;
           border: 1px solid #d0deff;
-          padding: 0 0 20px;
+          padding: 0;
           font-family: 'Plus Jakarta Sans', sans-serif;
         }
-        .pay-modal-body {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-          gap: 0;
-          align-items: start;
-          margin-top: 4px;
+        .pay-modal-head {
+          position: relative;
+          z-index: 40;
+          flex-shrink: 0;
         }
-        .pay-col {
-          padding: 16px 24px 8px;
+        .pay-modal-scroll {
+          flex: 1;
+          min-height: 0;
+          overflow-x: hidden;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: 20px;
+        }
+        .pay-tabs-wrap {
+          margin: 16px 24px 0;
+        }
+        .pay-tabs {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+        .pay-tab {
+          flex: 1;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border: 1px solid #c9dcff;
+          border-radius: 999px;
+          padding: 10px 16px;
+          background: #fff;
+          color: #4a6490;
+          font-size: 14px;
+          font-weight: 600;
+          font-family: inherit;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .pay-tab:hover {
+          background: #f7faff;
+          border-color: #0b47b8;
+          color: #0b47b8;
+        }
+        .pay-tab.is-active {
+          background: #0b47b8;
+          border-color: #0b47b8;
+          color: #fff;
+        }
+        .pay-tab-panel {
           min-width: 0;
-        }
-        .pay-col--transfer {
-          border-left: 1px solid #e2eaff;
-        }
-        .pay-col-heading {
-          margin: 0 0 12px;
-          font-size: 13px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: #6a84b0;
         }
         .pay-modal-head {
           display: flex;
@@ -370,18 +425,27 @@ export function PayInvoiceModal({
           border-bottom: 1px solid #edf2ff;
           background: #f7faff;
           border-radius: 16px 16px 0 0;
+          box-shadow: 0 1px 0 rgba(237, 242, 255, 0.9);
         }
         .pay-close {
+          position: relative;
+          z-index: 50;
           border: 1px solid #d0deff;
           background: #fff;
           color: #6a84b0;
-          width: 32px;
-          height: 32px;
+          width: 36px;
+          height: 36px;
           border-radius: 999px;
           font-size: 22px;
           line-height: 1;
           cursor: pointer;
           flex-shrink: 0;
+          box-shadow: 0 2px 8px rgba(10, 40, 120, 0.08);
+        }
+        .pay-close:hover:not(:disabled) {
+          background: #f7faff;
+          border-color: #0b47b8;
+          color: #0b47b8;
         }
         .pay-close:disabled { opacity: 0.5; cursor: not-allowed; }
         .pay-title { margin: 0; font-size: 22px; font-weight: 700; color: #051c4a; }
@@ -429,10 +493,22 @@ export function PayInvoiceModal({
           border-radius: 12px;
           background: #f7faff;
           border: 1px solid #edf2ff;
+          position: relative;
+          z-index: 1;
+        }
+        .pay-paypal-wrap {
+          max-height: min(520px, 55vh);
+          overflow-x: hidden;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          padding-right: 4px;
         }
         .pay-paypal-wrap--disabled {
           opacity: 0.55;
           pointer-events: none;
+        }
+        .pay-paypal-wrap iframe {
+          max-width: 100% !important;
         }
         .pay-paypal-status {
           margin: 0 0 10px;
@@ -444,79 +520,6 @@ export function PayInvoiceModal({
           margin: 0;
           font-size: 13px;
           color: #991b1b;
-        }
-        .pay-paypal-info {
-          margin-top: 16px;
-          padding-top: 14px;
-          border-top: 1px solid #e2eaff;
-        }
-        .pay-paypal-benefits {
-          list-style: none;
-          margin: 0 0 14px;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .pay-paypal-benefits li {
-          display: flex;
-          align-items: flex-start;
-          gap: 8px;
-          font-size: 13px;
-          line-height: 1.45;
-          color: #4a6490;
-        }
-        .pay-paypal-icon {
-          flex-shrink: 0;
-          width: 18px;
-          text-align: center;
-          font-size: 14px;
-          line-height: 1.35;
-        }
-        .pay-processing-compare {
-          padding: 10px 12px;
-          border-radius: 10px;
-          background: #fff;
-          border: 1px solid #e2eaff;
-        }
-        .pay-processing-title {
-          margin: 0 0 8px;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: #9aa8c7;
-        }
-        .pay-processing-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          padding: 6px 0;
-          font-size: 13px;
-        }
-        .pay-processing-row + .pay-processing-row {
-          border-top: 1px dashed #edf2ff;
-        }
-        .pay-processing-row--highlight .pay-processing-method {
-          color: #051c4a;
-          font-weight: 700;
-        }
-        .pay-processing-row--highlight .pay-processing-time {
-          color: #16a34a;
-          font-weight: 600;
-        }
-        .pay-processing-method {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          color: #4a6490;
-          font-weight: 600;
-        }
-        .pay-processing-time {
-          color: #6a84b0;
-          font-weight: 500;
-          white-space: nowrap;
         }
         .pay-transfer-box {
           margin: 0 0 12px;
@@ -534,12 +537,34 @@ export function PayInvoiceModal({
           color: #6a84b0;
           margin-bottom: 12px;
         }
+        .pay-banks-list {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
         .pay-bank-row {
           display: flex;
           align-items: center;
           gap: 14px;
         }
-        .pay-bca-icon { flex-shrink: 0; }
+        .pay-bank-row + .pay-bank-row {
+          padding-top: 14px;
+          border-top: 1px solid #edf2ff;
+        }
+        .pay-bank-logo-wrap {
+          flex-shrink: 0;
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
+          overflow: hidden;
+          background: #fff;
+          border: 1px solid #edf2ff;
+        }
+        .pay-bank-logo {
+          width: 44px;
+          height: 44px;
+          object-fit: contain;
+        }
         .pay-bank-details { flex: 1; min-width: 0; }
         .pay-bank-name {
           margin: 0 0 4px;
@@ -663,18 +688,8 @@ export function PayInvoiceModal({
         .pay-btn-primary { border: none; background: #16a34a; color: #fff; }
         .pay-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
         @media (max-width: 768px) {
-          .pay-modal {
-            max-height: min(92vh, 900px);
-            overflow-x: hidden;
-            overflow-y: auto;
-          }
-          .pay-modal-body {
-            grid-template-columns: 1fr;
-          }
-          .pay-col--transfer {
-            border-left: none;
-            border-top: 1px solid #e2eaff;
-            padding-top: 20px;
+          .pay-paypal-wrap {
+            max-height: min(440px, 48vh);
           }
         }
         @media (max-width: 420px) {
@@ -683,6 +698,7 @@ export function PayInvoiceModal({
           .pay-copy-btn { width: 100%; }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -17,6 +17,24 @@ export function AccountShellSkeleton({
       aria-busy="true"
       aria-label="Loading account"
     >
+      <div className="account-shell-main">
+        <div className="account-shell-mobile-bar" aria-hidden>
+          <div className="account-shell-skel" style={{ width: 42, height: 42, borderRadius: 10 }} />
+          <div className="account-shell-skel" style={{ width: 120, height: 18, borderRadius: 8 }} />
+        </div>
+        <div className="account-shell-skel account-shell-skel-line account-shell-skel-line--title" />
+        <div className="account-shell-skel account-shell-skel-line account-shell-skel-line--subtitle" />
+        <div className="account-shell-skel account-shell-skel-card">
+          <div className="account-shell-skel account-shell-skel-line account-shell-skel-line--hero" />
+          <div className="account-shell-skel-grid">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="account-shell-skel account-shell-skel-field" />
+            ))}
+          </div>
+          <div className="account-shell-skel account-shell-skel-line account-shell-skel-line--wide" />
+        </div>
+      </div>
+
       <aside className="account-shell-sidebar">
         {showBrand ? (
           <div className="account-shell-brand">
@@ -41,20 +59,6 @@ export function AccountShellSkeleton({
 
         <div className="account-shell-skel account-shell-skel-logout" />
       </aside>
-
-      <div className="account-shell-main">
-        <div className="account-shell-skel account-shell-skel-line account-shell-skel-line--title" />
-        <div className="account-shell-skel account-shell-skel-line account-shell-skel-line--subtitle" />
-        <div className="account-shell-skel account-shell-skel-card">
-          <div className="account-shell-skel account-shell-skel-line account-shell-skel-line--hero" />
-          <div className="account-shell-skel-grid">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="account-shell-skel account-shell-skel-field" />
-            ))}
-          </div>
-          <div className="account-shell-skel account-shell-skel-line account-shell-skel-line--wide" />
-        </div>
-      </div>
 
       <style>{accountShellStyles}</style>
     </div>

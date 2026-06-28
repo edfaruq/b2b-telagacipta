@@ -5,8 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { AccountShellSkeleton } from "@/components/account/AccountShellSkeleton";
 import { NavCountBadge } from "@/components/account/NavCountBadge";
+import { AccountShellMobileBar } from "@/components/account/AccountShellMobileBar";
 import { accountShellStyles } from "@/components/account/accountShellStyles";
-import { profileInitials } from "@/lib/profile-initials";
+import { useAccountShellMenu } from "@/components/account/useAccountShellMenu";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 
 type BuyerProfile = {
   nama: string;
@@ -15,6 +17,7 @@ type BuyerProfile = {
   no_telepon: string;
   alamat: string;
   negara: string;
+  foto_profil: string;
 };
 
 function IconUser() {
@@ -161,12 +164,34 @@ export function BuyerAccountShell({ children }: Props) {
   useEffect(() => {
     if (!ready) return;
 
-    const onFocus = () => {
-      loadNavBadges();
+    const reloadProfile = async () => {
+      try {
+        const profileRes = await fetch("/api/auth/profile", { cache: "no-store" });
+        const data = (await profileRes.json()) as { profile?: BuyerProfile };
+        if (profileRes.ok && data.profile) {
+          setProfile(data.profile);
+        }
+      } catch {
+        /* ignore */
+      }
     };
+
+    const onFocus = () => {
+      void loadNavBadges();
+    };
+    const onAvatarUpdated = () => {
+      void reloadProfile();
+    };
+
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    window.addEventListener("profile-avatar-updated", onAvatarUpdated);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("profile-avatar-updated", onAvatarUpdated);
+    };
   }, [ready]);
+
+  const { menuOpen, closeMenu, toggleMenu } = useAccountShellMenu();
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -197,12 +222,32 @@ export function BuyerAccountShell({ children }: Props) {
   }
 
   return (
-    <div className="account-shell">
-      <aside className="account-shell-sidebar">
+    <div className={`account-shell${menuOpen ? " is-menu-open" : ""}`}>
+      <div className="account-shell-main">
+        <AccountShellMobileBar title="Account menu" menuOpen={menuOpen} onToggle={toggleMenu} />
+        {children}
+      </div>
+
+      <button
+        type="button"
+        className="account-shell-backdrop"
+        aria-label="Close menu"
+        aria-hidden={!menuOpen}
+        onClick={closeMenu}
+        tabIndex={menuOpen ? 0 : -1}
+      />
+      <aside
+        id="account-shell-sidebar"
+        className="account-shell-sidebar"
+        aria-hidden={!menuOpen}
+      >
         <div className="account-shell-profile-card">
-          <div className="account-shell-avatar" aria-hidden>
-            {profile ? profileInitials(profile.nama) : "—"}
-          </div>
+          <ProfileAvatar
+            name={profile?.nama ?? "—"}
+            src={profile?.foto_profil}
+            size={72}
+            className="account-shell-avatar-img"
+          />
           <p className="account-shell-name">{profile?.nama ?? "—"}</p>
           <p className="account-shell-email">{profile?.email ?? ""}</p>
           {profile?.instansi ? <p className="account-shell-meta">{profile.instansi}</p> : null}
@@ -218,6 +263,7 @@ export function BuyerAccountShell({ children }: Props) {
                 key={item.href}
                 href={item.href}
                 className={`account-shell-nav-item${active ? " is-active" : ""}`}
+                onClick={closeMenu}
               >
                 {item.icon}
                 <span className="account-shell-nav-label">{item.label}</span>
@@ -236,14 +282,18 @@ export function BuyerAccountShell({ children }: Props) {
           })}
         </nav>
 
-        <button type="button" className="account-shell-logout" onClick={handleLogout}>
+        <button
+          type="button"
+          className="account-shell-logout"
+          onClick={() => {
+            closeMenu();
+            void handleLogout();
+          }}
+        >
           <IconLogout />
           Logout
         </button>
       </aside>
-
-      <div className="account-shell-main">{children}</div>
-
       <style>{accountShellStyles}</style>
     </div>
   );

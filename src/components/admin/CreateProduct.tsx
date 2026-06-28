@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { alertFailBanner } from "@/lib/alertFailBanner";
+import { FormattedNumberInput } from "@/components/FormattedNumberInput";
 
 // ─── Design tokens (sama persis dengan halaman admin) ─────────────────────────
 const font = '"Plus Jakarta Sans", sans-serif';
@@ -150,7 +151,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 // ─── Card — header identik dengan "All Users" card di parent ──────────────────
 function Card({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <div style={{
+    <div className="cp-card" style={{
       background: c.card, border: `1px solid ${c.border}`, borderRadius: 12,
       overflow: "hidden", marginBottom: 16, boxShadow: "0 4px 18px rgba(10,40,120,0.08)",
     }}>
@@ -284,7 +285,7 @@ export function CreateProduct() {
         .card-anim-2 { animation: fadeInUp 0.38s 0.1s ease both; }
         .card-anim-3 { animation: fadeInUp 0.38s 0.2s ease both; }
         .spinning { display: inline-flex; animation: spin 0.9s linear infinite; }
-        .cp-cols { display: flex; gap: 16px; align-items: flex-start; }
+        .cp-cols { display: flex; gap: 16px; align-items: flex-start; width: 100%; max-width: 100%; }
         .cp-left  { flex: 1; min-width: 0; }
         .cp-right { width: 282px; flex-shrink: 0; }
         .cp-btn-reset { transition: background 0.15s, box-shadow 0.15s, transform 0.12s; }
@@ -303,8 +304,28 @@ export function CreateProduct() {
           box-shadow: 0 0 0 3px rgba(11,71,184,0.12) !important;
         }
         @media (max-width: 1020px) {
-          .cp-cols { flex-direction: column; }
+          .cp-cols { flex-direction: column; align-items: stretch; }
+          .cp-left, .cp-right { width: 100%; max-width: 100%; }
           .cp-right { width: 100% !important; }
+        }
+        @media (max-width: 900px) {
+          .cp-card {
+            margin-left: -12px;
+            margin-right: -12px;
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+          }
+        }
+        @media (max-width: 540px) {
+          .cp-card {
+            margin-left: -8px;
+            margin-right: -8px;
+          }
+        }
+        .cp-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 540px) {
+          .cp-field-row { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -389,7 +410,7 @@ export function CreateProduct() {
                 />
               </Field>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="cp-field-row">
                 <Field label="Origin / region" required>
                   <input style={inputBase} placeholder="e.g. East Java"
                     value={form.asal_produk} required
@@ -408,7 +429,7 @@ export function CreateProduct() {
 
             {/* Harga & Stok */}
             <Card title="Price & stock" icon={<IconCoin />}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="cp-field-row">
                 <Field label="Indicative price" required hint="Price per unit">
                   <div style={{ display: "flex" }}>
                     <span style={{
@@ -416,10 +437,10 @@ export function CreateProduct() {
                       background: c.bg, border: `1px solid ${c.borderSoft}`,
                       borderRight: "none", borderRadius: "8px 0 0 8px", fontFamily: font,
                     }}>Rp</span>
-                    <input type="number" min={0} step="any" required
+                    <FormattedNumberInput mode="amount" required
                       style={{ ...inputBase, borderRadius: 0, borderLeft: "none", borderRight: "none" }}
                       placeholder="0" value={form.harga_indikatif}
-                      onChange={(e) => set("harga_indikatif", e.target.value)} />
+                      onChange={(v) => set("harga_indikatif", v)} />
                     <span style={{
                       padding: "9px 10px", fontSize: 13, color: c.muted, userSelect: "none",
                       background: c.bg, border: `1px solid ${c.borderSoft}`,
@@ -428,9 +449,9 @@ export function CreateProduct() {
                   </div>
                 </Field>
                 <Field label={`Stock (${form.satuan})`} required hint="Max. order quantity equals stock">
-                  <input type="number" min={0} style={inputBase} placeholder="0"
-                    value={form.stok} required
-                    onChange={(e) => set("stok", e.target.value)} />
+                  <FormattedNumberInput required style={inputBase} placeholder="0"
+                    value={form.stok}
+                    onChange={(v) => set("stok", v)} />
                 </Field>
               </div>
             </Card>
@@ -545,15 +566,8 @@ export function CreateProduct() {
               </p>
             </Card>
 
-            {/* Homepage — Latest otomatis 4 terbaru; admin hanya mengatur Favorite */}
+            {/* Homepage — admin mengatur Favorite */}
             <Card title="Homepage visibility" icon={<IconHome />}>
-              <p style={{
-                margin: "0 0 14px", padding: "10px 12px", borderRadius: 8, fontSize: 12, color: c.text3,
-                fontFamily: font, lineHeight: 1.55, background: "#f7faff", border: `1px solid ${c.borderInner}`,
-              }}>
-                The <strong style={{ color: c.text2 }}>Latest Products</strong> section shows the{" "}
-                <strong style={{ color: c.primary }}>4 most recently created active products</strong> automatically — nothing to configure here.
-              </p>
               {/* Favorite */}
               <div style={{
                 display: "flex", justifyContent: "space-between", alignItems: "flex-start",

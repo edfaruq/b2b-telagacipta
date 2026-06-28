@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alertFailBanner } from "@/lib/alertFailBanner";
-import { profileInitials } from "@/lib/profile-initials";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 
 type BuyerProfile = {
   nama: string;
@@ -11,6 +11,7 @@ type BuyerProfile = {
   no_telepon: string;
   alamat: string;
   negara: string;
+  foto_profil: string;
 };
 
 function IconCheck() {
@@ -57,6 +58,8 @@ export default function BuyerAccountProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const loadProfile = async () => {
     const res = await fetch("/api/auth/profile", { cache: "no-store" });
@@ -145,6 +148,58 @@ export default function BuyerAccountProfilePage() {
     setSuccess("");
   };
 
+  const handlePhotoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setError("");
+    setSuccess("");
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("foto_profil", file);
+      const res = await fetch("/api/auth/profile/photo", {
+        method: "POST",
+        body: formData,
+      });
+      const data = (await res.json()) as { message?: string; foto_profil?: string };
+      if (!res.ok) {
+        setError(data.message ?? "Failed to update profile photo.");
+        return;
+      }
+      const nextPhoto = data.foto_profil ?? "";
+      setProfile((prev) => (prev ? { ...prev, foto_profil: nextPhoto } : prev));
+      setSuccess(data.message ?? "Profile photo updated.");
+      window.dispatchEvent(new Event("profile-avatar-updated"));
+    } catch {
+      setError("Could not reach the server.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setError("");
+    setSuccess("");
+    setUploadingPhoto(true);
+    try {
+      const res = await fetch("/api/auth/profile/photo", { method: "DELETE" });
+      const data = (await res.json()) as { message?: string };
+      if (!res.ok) {
+        setError(data.message ?? "Failed to remove profile photo.");
+        return;
+      }
+      setProfile((prev) => (prev ? { ...prev, foto_profil: "" } : prev));
+      setSuccess(data.message ?? "Profile photo removed.");
+      window.dispatchEvent(new Event("profile-avatar-updated"));
+    } catch {
+      setError("Could not reach the server.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const personalFields = profile
     ? [
         { label: "Full name", value: profile.nama },
@@ -182,12 +237,45 @@ export default function BuyerAccountProfilePage() {
         ) : profile ? (
           <div className="account-profile-card">
             <div className="account-profile-hero">
-              <div className="account-profile-avatar-lg" aria-hidden>
-                {profileInitials(profile.nama)}
+              <div className="account-profile-avatar-wrap">
+                <ProfileAvatar
+                  name={profile.nama}
+                  src={profile.foto_profil}
+                  size={88}
+                  className="account-profile-avatar-lg"
+                />
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="account-profile-photo-input"
+                  onChange={(event) => void handlePhotoSelect(event)}
+                  disabled={uploadingPhoto}
+                />
               </div>
-              <div>
+              <div className="account-profile-hero-meta">
                 <p className="account-profile-hero-name">{profile.nama}</p>
                 <p className="account-profile-hero-email">{profile.email}</p>
+                <div className="account-profile-photo-actions">
+                  <button
+                    type="button"
+                    className="account-link-btn"
+                    disabled={uploadingPhoto}
+                    onClick={() => photoInputRef.current?.click()}
+                  >
+                    {uploadingPhoto ? "Uploading…" : "Change photo"}
+                  </button>
+                  {profile.foto_profil ? (
+                    <button
+                      type="button"
+                      className="account-link-btn account-link-btn--muted"
+                      disabled={uploadingPhoto}
+                      onClick={() => void handleRemovePhoto()}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
 
@@ -431,17 +519,39 @@ export default function BuyerAccountProfilePage() {
           padding-bottom: 24px;
           margin-bottom: 8px;
         }
-        .account-profile-avatar-lg {
+        .account-profile-avatar-wrap {
+          position: relative;
+          flex-shrink: 0;
+        }
+        .account-profile-photo-input {
+          position: absolute;
+          width: 0;
+          height: 0;
+          opacity: 0;
+          pointer-events: none;
+        }
+        .account-profile-avatar-lg.profile-avatar--initials,
+        .account-profile-avatar-lg.profile-avatar--photo {
           width: 88px;
           height: 88px;
-          border-radius: 50%;
-          background: linear-gradient(145deg, #0b47b8, #1a5fd4);
-          color: #fff;
           font-size: 28px;
-          font-weight: 700;
-          display: grid;
-          place-items: center;
-          flex-shrink: 0;
+          box-shadow: 0 8px 20px rgba(11, 71, 184, 0.22);
+        }
+        .account-profile-hero-meta {
+          min-width: 0;
+        }
+        .account-profile-photo-actions {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 12px;
+          margin-top: 10px;
+        }
+        .account-link-btn--muted {
+          color: #6a84b0;
+        }
+        .account-link-btn--muted:hover {
+          color: #991b1b;
         }
         .account-profile-hero-name {
           margin: 0 0 4px;

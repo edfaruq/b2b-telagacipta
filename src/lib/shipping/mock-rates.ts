@@ -1,4 +1,4 @@
-import type { NormalizedRate } from "@/lib/biteship/rates";
+import type { NormalizedRate } from "@/lib/shipping/types";
 
 export type MockShippingRateInput = {
   destinationCountry: string;

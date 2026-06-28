@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
+import GlobalFooter from "@/components/GlobalFooter";
 import { RequestQuotationModal } from "@/components/RequestQuotationModal";
 import { normalizeQuantityOnBlur, parseQuantityInput } from "@/lib/quantity-input";
+import { formatThousandsId } from "@/lib/number-input";
 
 type DetailProduct = {
   slug: string;
@@ -38,7 +40,7 @@ export default function BuyerProductDetailPage() {
   const [product, setProduct] = useState<DetailProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [quantityInput, setQuantityInput] = useState("1");
+  const [quantityInput, setQuantityInput] = useState(formatThousandsId(1));
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [quotationOpen, setQuotationOpen] = useState(false);
   const [authHint, setAuthHint] = useState("");
@@ -75,7 +77,7 @@ export default function BuyerProductDetailPage() {
   useEffect(() => {
     if (!product) return;
     setQuantity(1);
-    setQuantityInput("1");
+    setQuantityInput(formatThousandsId(1));
   }, [product?.slug]);
 
   useEffect(() => {
@@ -160,7 +162,7 @@ export default function BuyerProductDetailPage() {
     setQuantity((current) => {
       const base = current < 1 ? 1 : current;
       const next = Math.min(base + 1, currentProduct.stock);
-      setQuantityInput(String(next));
+      setQuantityInput(formatThousandsId(next));
       return next;
     });
   }
@@ -169,7 +171,7 @@ export default function BuyerProductDetailPage() {
     setQuantity((current) => {
       const base = current < 1 ? 1 : current;
       const next = Math.max(base - 1, 1);
-      setQuantityInput(String(next));
+      setQuantityInput(formatThousandsId(next));
       return next;
     });
   }
@@ -190,16 +192,11 @@ export default function BuyerProductDetailPage() {
   return (
     <>
       <style>{`
-        .detail-shell {
-          min-height: calc(100vh - var(--market-nav-height));
-          display: flex;
-          flex-direction: column;
-        }
         .detail-page {
+          min-height: calc(100vh - var(--market-nav-height));
           background: #f4f6fb;
           color: #1f2937;
           font-family: 'Plus Jakarta Sans', sans-serif;
-          flex: 1;
         }
         .detail-wrap {
           max-width: var(--content-max-width);
@@ -421,11 +418,6 @@ export default function BuyerProductDetailPage() {
           color: #6b7280;
           line-height: 1.6;
         }
-        .detail-shell .global-footer {
-          background: #f4f6fb;
-          opacity: 0;
-          animation: fadeSlideIn 0.35s ease-out 0.2s forwards;
-        }
         @keyframes fadeSlideIn {
           from {
             opacity: 0;
@@ -444,19 +436,33 @@ export default function BuyerProductDetailPage() {
             grid-template-columns: 1fr;
           }
         }
-        @media (max-width: 980px) {
+        @media (max-width: 768px) {
+          .detail-wrap {
+            padding: 24px 20px 36px;
+          }
+          .meta {
+            padding: 22px 18px;
+          }
           .meta h1 {
             font-size: 36px;
           }
+          .price {
+            font-size: 32px;
+          }
           .total-value {
-            font-size: 30px;
+            font-size: 28px;
+          }
+          .long-desc-card {
+            padding: 18px 16px 20px;
+          }
+          .long-desc-title {
+            font-size: 20px;
           }
         }
       `}</style>
 
-      <div className="detail-shell">
-        <div className="detail-page">
-          <main className="detail-wrap">
+      <div className="detail-page">
+        <main className="detail-wrap">
             <Link href={backHref} className="back-link">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path
@@ -569,9 +575,8 @@ export default function BuyerProductDetailPage() {
               </div>
             </section>
           </main>
-        </div>
-        <footer className="global-footer">© 2026 PT Telaga Cipta Indonesia</footer>
       </div>
+      <GlobalFooter />
 
       <RequestQuotationModal
         open={quotationOpen}

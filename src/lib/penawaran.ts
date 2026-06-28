@@ -1,10 +1,9 @@
 import { formatPriceIdr } from "@/lib/catalog-product";
 
-export const PENAWARAN_STATUS = ["draft", "dikirim", "disetujui", "ditolak"] as const;
+export const PENAWARAN_STATUS = ["dikirim", "disetujui", "ditolak"] as const;
 export type PenawaranStatus = (typeof PENAWARAN_STATUS)[number];
 
 const PENAWARAN_LABELS: Record<PenawaranStatus, string> = {
-  draft: "Draft",
   dikirim: "Sent",
   disetujui: "Accepted",
   ditolak: "Rejected",

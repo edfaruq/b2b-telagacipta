@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { alertFailBanner } from "@/lib/alertFailBanner";
+import { FormattedNumberInput } from "@/components/FormattedNumberInput";
+import { formatNumberFieldValue } from "@/lib/number-input";
 
 // ─── Design tokens — identik dengan halaman admin ────────────────────────────
 const font = '"Plus Jakarta Sans", sans-serif';
@@ -259,8 +261,8 @@ export function ManageProducts() {
       deskripsi:         row.deskripsi ?? "",
       asal_produk:       row.asal_produk,
       satuan:            row.satuan || "kg",
-      harga_indikatif:   String(row.harga_indikatif ?? ""),
-      stok:              String(row.stok ?? ""),
+      harga_indikatif:   formatNumberFieldValue(row.harga_indikatif, "amount"),
+      stok:              formatNumberFieldValue(row.stok),
       is_favorite:       row.is_favorite === 1 || row.is_favorite === true,
       status:            row.status === "draft" ? "draft" : "active",
     });
@@ -410,7 +412,7 @@ export function ManageProducts() {
             <p style={{ margin: 0, fontSize: 14, fontFamily: font }}>No products yet. Add some from Create Product.</p>
           </div>
         ) : (
-          <table className="admin-data-table">
+          <table className="admin-data-table admin-table--responsive">
             <colgroup>
               <col className="col-photo" />
               <col className="col-name" />
@@ -437,7 +439,7 @@ export function ManageProducts() {
               {rows.map((r) => (
                 <tr key={r.id_produk} className="table-row">
                   {/* Foto */}
-                  <td>
+                  <td data-label="Photo">
                     <div style={{
                       width: 44, height: 44, borderRadius: 8, overflow: "hidden",
                       background: "#e5e7eb", flexShrink: 0,
@@ -451,20 +453,20 @@ export function ManageProducts() {
                     </div>
                   </td>
                   {/* Nama */}
-                  <td className="cell-clip" style={{ fontWeight: 600, color: c.text }} title={r.nama_produk}>{r.nama_produk}</td>
+                  <td data-label="Name" className="cell-clip" style={{ fontWeight: 600, color: c.text }} title={r.nama_produk}>{r.nama_produk}</td>
                   {/* Asal */}
-                  <td className="cell-clip" style={{ color: c.text3 }} title={r.asal_produk}>{r.asal_produk}</td>
+                  <td data-label="Origin" className="cell-clip" style={{ color: c.text3 }} title={r.asal_produk}>{r.asal_produk}</td>
                   {/* Price + unit */}
-                  <td className="cell-clip" style={{ color: c.text2 }}>
+                  <td data-label="Price" className="cell-clip" style={{ color: c.text2 }}>
                     <span style={{ fontWeight: 600 }}>{fmtRp(r.harga_indikatif)}</span>
                     <span style={{ color: c.muted, fontSize: 12, fontWeight: 500, marginLeft: 6 }}>
                       / {r.satuan?.trim() || "kg"}
                     </span>
                   </td>
                   {/* Stok */}
-                  <td className="cell-clip" style={{ color: c.text3 }}>{r.stok}</td>
+                  <td data-label="Stock" className="cell-clip" style={{ color: c.text3 }}>{r.stok}</td>
                   {/* Curated (favorite) — Latest homepage otomatis 4 terbaru */}
-                  <td>
+                  <td data-label="Curated">
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                       {(r.is_favorite === 1 || r.is_favorite === true) ? (
                         <span style={{
@@ -477,7 +479,7 @@ export function ManageProducts() {
                     </div>
                   </td>
                   {/* Status — FULL CAPITAL */}
-                  <td>
+                  <td data-label="Status">
                     <span style={{
                       display: "inline-flex", alignItems: "center", gap: 5,
                       borderRadius: "999px", padding: "4px 10px",
@@ -502,7 +504,7 @@ export function ManageProducts() {
                     </span>
                   </td>
                   {/* Edit button — sama gaya Details button di parent */}
-                  <td className="admin-td-actions">
+                  <td className="admin-td-actions" data-label="Action">
                     <button
                       type="button"
                       className="acct-btn acct-btn--outline"
@@ -669,15 +671,15 @@ export function ManageProducts() {
                           background: c.bg, border: `1px solid ${c.borderSoft}`,
                           borderRight: "none", borderRadius: "8px 0 0 8px", fontFamily: font,
                         }}>Rp</span>
-                        <input type="number" min={0} step="any" required
+                        <FormattedNumberInput mode="amount" required
                           style={{ ...inputBase, borderRadius: "0 8px 8px 0" }}
                           value={form.harga_indikatif}
-                          onChange={(e) => set("harga_indikatif", e.target.value)} />
+                          onChange={(v) => set("harga_indikatif", v)} />
                       </div>
                     </Field>
                     <Field label={`Stock (${form.satuan})`} required>
-                      <input type="number" min={0} style={inputBase} value={form.stok} required
-                        onChange={(e) => set("stok", e.target.value)} />
+                      <FormattedNumberInput required style={inputBase} value={form.stok}
+                        onChange={(v) => set("stok", v)} />
                     </Field>
                   </div>
                 </Card>

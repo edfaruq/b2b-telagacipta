@@ -491,7 +491,7 @@ export default function LoginPage() {
 
             <div className="form-panel">
               <p className="eyebrow">B2B Marketplace</p>
-              <h2 className="form-title">Welcome!</h2>
+              <h2 className="form-title">Welcome</h2>
               <p className="form-sub">Sign in to access your export dashboard.</p>
               <div className="sep" />
 

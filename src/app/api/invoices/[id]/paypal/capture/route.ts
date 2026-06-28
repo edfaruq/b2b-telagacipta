@@ -8,6 +8,7 @@ import {
   getInvoicePayContextForBuyer,
   InvoicePayError,
 } from "@/lib/paypal/invoice-context";
+import { StockDeductionError } from "@/lib/deduct-stock-for-invoice";
 import { recordPayPalCapture } from "@/lib/paypal/record-payment";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -101,6 +102,9 @@ export async function POST(request: Request, context: RouteContext) {
     });
   } catch (err) {
     if (err instanceof InvoicePayError) {
+      return NextResponse.json({ message: err.message }, { status: err.status });
+    }
+    if (err instanceof StockDeductionError) {
       return NextResponse.json({ message: err.message }, { status: err.status });
     }
     const message = err instanceof Error ? err.message : "Could not capture PayPal payment.";

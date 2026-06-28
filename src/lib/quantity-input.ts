@@ -1,4 +1,6 @@
-/** Parse digit-only quantity; clamp display + value to max stock while typing. */
+import { formatThousandsId, parseThousandsId } from "@/lib/number-input";
+
+/** Parse quantity; clamp display + value to max stock while typing. */
 export function parseQuantityInput(
   value: string,
   maxStock: number
@@ -6,12 +8,12 @@ export function parseQuantityInput(
   if (value === "") {
     return { input: "", quantity: 0 };
   }
-  if (!/^\d+$/.test(value)) {
+  const parsed = Math.floor(parseThousandsId(value));
+  if (!Number.isFinite(parsed) || parsed < 0) {
     return null;
   }
-  const parsed = Number.parseInt(value, 10);
   const clamped = Math.min(parsed, maxStock);
-  return { input: String(clamped), quantity: clamped };
+  return { input: formatThousandsId(clamped), quantity: clamped };
 }
 
 export function normalizeQuantityOnBlur(
@@ -19,11 +21,11 @@ export function normalizeQuantityOnBlur(
   maxStock: number
 ): { input: string; quantity: number } {
   if (input === "") {
-    return { input: "1", quantity: 1 };
+    return { input: formatThousandsId(1), quantity: 1 };
   }
-  const parsed = Number.parseInt(input, 10);
-  const normalized = Number.isNaN(parsed)
+  const parsed = Math.floor(parseThousandsId(input));
+  const normalized = !Number.isFinite(parsed)
     ? 1
     : Math.min(Math.max(parsed, 1), maxStock);
-  return { input: String(normalized), quantity: normalized };
+  return { input: formatThousandsId(normalized), quantity: normalized };
 }

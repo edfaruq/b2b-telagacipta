@@ -1,15 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  formatCarrierStatus,
+  formatShipmentDisplayDate,
+  getArrivalEstimationLabel,
+  resolveCarrierStatus,
+} from "@/lib/shipping/arrival-estimate";
 
 type Props = {
   shipmentId: number;
+  trackingNumber: string;
+  shipmentStatus: string;
+  shippedAt: string | null;
+  deliveredAt: string | null;
 };
 
-export function ShippingLiveStatus({ shipmentId }: Props) {
+export function ShippingLiveStatus({
+  shipmentId,
+  trackingNumber,
+  shipmentStatus,
+  shippedAt,
+  deliveredAt,
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [arrivalLabel, setArrivalLabel] = useState(() =>
+    getArrivalEstimationLabel({ shipmentStatus, shippedAt, deliveredAt })
+  );
+
+  const initialCarrierStatus = useMemo(
+    () => formatCarrierStatus(resolveCarrierStatus("", shipmentStatus)),
+    [shipmentStatus]
+  );
+
+  useEffect(() => {
+    setArrivalLabel(getArrivalEstimationLabel({ shipmentStatus, shippedAt, deliveredAt }));
+    setStatus(
+      shipmentStatus === "diterima" || shipmentStatus === "diproses"
+        ? initialCarrierStatus
+        : null
+    );
+  }, [shipmentStatus, shippedAt, deliveredAt, initialCarrierStatus]);
+
+  const handleCopyTracking = async () => {
+    try {
+      await navigator.clipboard.writeText(trackingNumber);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -20,16 +64,33 @@ export function ShippingLiveStatus({ shipmentId }: Props) {
         { cache: "no-store" }
       );
       const data = (await res.json()) as {
-        tracking?: { status: string; message: string };
+        tracking?: {
+          status: string;
+          message: string;
+          estimatedArrival?: string | null;
+        };
         message?: string;
       };
       if (!res.ok) {
         setError(data.message ?? "Could not load tracking.");
-        setStatus(null);
         return;
       }
-      const label = data.tracking?.status ?? "unknown";
-      setStatus(label.replace(/_/g, " "));
+      const raw = data.tracking?.status ?? "unknown";
+      const resolved = resolveCarrierStatus(raw, shipmentStatus);
+      setStatus(formatCarrierStatus(resolved));
+
+      if (data.tracking?.estimatedArrival) {
+        const est = new Date(data.tracking.estimatedArrival);
+        if (!Number.isNaN(est.getTime())) {
+          if (shipmentStatus === "diterima") {
+            setArrivalLabel(
+              getArrivalEstimationLabel({ shipmentStatus, shippedAt, deliveredAt })
+            );
+          } else {
+            setArrivalLabel(`Estimated arrival ${formatShipmentDisplayDate(est)}`);
+          }
+        }
+      }
     } catch {
       setError("Could not reach tracking service.");
     } finally {
@@ -38,7 +99,21 @@ export function ShippingLiveStatus({ shipmentId }: Props) {
   };
 
   return (
-    <div style={{ marginTop: 8 }}>
+    <div className="mq-ship-tracking-block">
+      <div className="mq-ship-line mq-ship-line--track">
+        <strong>Tracking number:</strong>
+        <span className="mq-track-number">{trackingNumber}</span>
+        <button
+          type="button"
+          className="mq-copy-track-btn"
+          onClick={() => void handleCopyTracking()}
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <p className="mq-ship-line">
+        <strong>Arrival estimation:</strong> {arrivalLabel}
+      </p>
       <button
         type="button"
         className="mq-ship-track-btn"

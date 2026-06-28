@@ -17,7 +17,7 @@ type ShipmentRow = {
   expedition: string;
   deliveryAddress: string;
   canMarkShipped: boolean;
-  canUseBiteship: boolean;
+  canAutoGenerateAwb: boolean;
 };
 
 const shipAnimStyles = `
@@ -44,6 +44,11 @@ const shipAnimStyles = `
     outline: none;
     border-color: #0b47b8;
     box-shadow: 0 0 0 3px rgba(11, 71, 184, 0.12);
+  }
+  @media (max-width: 768px) {
+    .ship-tracking-input {
+      min-width: 0;
+    }
   }
 `;
 
@@ -86,8 +91,6 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
   const [processingKey, setProcessingKey] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"success" | "error">("success");
-  const [biteshipConfigured, setBiteshipConfigured] = useState(false);
-  const [shippingMock, setShippingMock] = useState(false);
 
   const load = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
@@ -95,8 +98,6 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
       const res = await fetch("/api/admin/shipments", { cache: "no-store" });
       const data = (await res.json()) as {
         shipments?: ShipmentRow[];
-        biteshipConfigured?: boolean;
-        shippingMock?: boolean;
         message?: string;
       };
       if (!res.ok) {
@@ -107,8 +108,6 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
       }
       const list = data.shipments ?? [];
       setShipments(list);
-      setBiteshipConfigured(Boolean(data.biteshipConfigured));
-      setShippingMock(Boolean(data.shippingMock));
       setTrackingDraft((prev) => {
         const next = { ...prev };
         for (const row of list) {
@@ -134,15 +133,11 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
 
   const handleShip = async (row: ShipmentRow) => {
     const nomorResi = (trackingDraft[row.id_pengiriman] ?? "").trim();
-    const useBiteship = !nomorResi && row.canUseBiteship;
+    const autoGenerate = !nomorResi && row.canAutoGenerateAwb;
 
-    if (!nomorResi && !useBiteship) {
+    if (!nomorResi && !autoGenerate) {
       setMessage(
-        biteshipConfigured
-          ? shippingMock
-            ? "Enter a tracking number or leave empty to generate a mock AWB (courier must be supported)."
-            : "Enter a tracking number or leave empty to create shipment via Biteship (courier must be supported)."
-          : "Enter a tracking number before marking as shipped."
+        "Enter a tracking number or leave empty to generate a mock AWB (courier must be supported)."
       );
       setMessageTone("error");
       return;
@@ -159,7 +154,7 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
           id_pengiriman: row.id_pengiriman,
           action: "ship",
           nomor_resi: nomorResi || undefined,
-          use_biteship: useBiteship,
+          auto_generate: autoGenerate,
         }),
       });
       const data = (await res.json()) as { message?: string };
@@ -192,7 +187,7 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
         <header>
           <h1 style={{ margin: "0 0 4px", fontSize: "32px", color: "#051c4a" }}>Manage Shipping</h1>
           <p style={{ margin: "7px 0 18px", color: "#6a84b0", fontSize: "17px" }}>
-            Paid orders ready to ship. Enter AWB manually or leave empty to create via Biteship.
+            Paid orders ready to ship. Enter AWB manually or leave empty to generate a mock AWB.
           </p>
         </header>
       ) : null}
@@ -217,13 +212,9 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
         </div>
       ) : null}
 
-      {biteshipConfigured ? (
-        <p style={{ margin: "0 0 12px", fontSize: "13px", color: "#6a84b0" }}>
-          {shippingMock
-            ? "Mock shipping is active. Empty tracking + Mark shipped will generate a mock AWB."
-            : "Biteship is connected. Empty tracking + Mark shipped will create AWB automatically."}
-        </p>
-      ) : null}
+      <p style={{ margin: "0 0 12px", fontSize: "13px", color: "#6a84b0" }}>
+        Mock shipping is active. Empty tracking + Mark shipped will generate a mock AWB.
+      </p>
 
       <div className="admin-table-card">
         <div className="admin-table-card__head">
@@ -247,7 +238,7 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
             <p style={{ margin: "8px 0 0" }}>No orders awaiting shipment or in transit.</p>
           </div>
         ) : (
-          <table className="admin-data-table">
+          <table className="admin-data-table admin-table--responsive">
             <thead>
               <tr>
                 <th>Buyer / Invoice</th>
@@ -264,7 +255,7 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
                   className="ship-table-row"
                   style={{ animationDelay: `${Math.min(index, 10) * 65 + 70}ms` }}
                 >
-                  <td className="cell-wrap">
+                  <td data-label="Buyer / Invoice" className="cell-wrap">
                     <strong>{row.buyerName}</strong>
                     <br />
                     <span style={{ fontSize: "13px", color: "#6a84b0" }}>{row.invoiceNumber}</span>
@@ -273,12 +264,12 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
                       {row.totalLabel}
                     </span>
                   </td>
-                  <td className="cell-wrap" style={{ color: "#4a6490", fontSize: "14px" }}>
+                  <td data-label="Product / Courier" className="cell-wrap" style={{ color: "#4a6490", fontSize: "14px" }}>
                     {row.productName}
                     <br />
                     <span style={{ fontWeight: 600 }}>{row.expedition || "—"}</span>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span
                       className={
                         row.status === "diproses"
@@ -294,14 +285,14 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
                       {row.statusLabel}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Tracking">
                     {row.canMarkShipped ? (
                       <input
                         type="text"
                         className="ship-tracking-input"
                         placeholder={
-                          row.canUseBiteship
-                            ? "AWB manual, or empty for Biteship"
+                          row.canAutoGenerateAwb
+                            ? "Input tracking number"
                             : "Tracking / resi no."
                         }
                         value={trackingDraft[row.id_pengiriman] ?? ""}
@@ -319,7 +310,7 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
                       </span>
                     )}
                   </td>
-                  <td className="admin-td-actions">
+                  <td className="admin-td-actions" data-label="Action">
                     {row.canMarkShipped ? (
                       <button
                         type="button"
@@ -328,7 +319,7 @@ export function PendingShipmentsPanel({ embedded = false, onActivity }: Props) {
                         onClick={() => handleShip(row)}
                       >
                         {processingKey === `ship-${row.id_pengiriman}`
-                          ? row.canUseBiteship &&
+                          ? row.canAutoGenerateAwb &&
                             !(trackingDraft[row.id_pengiriman] ?? "").trim()
                             ? "Creating…"
                             : "Shipping…"

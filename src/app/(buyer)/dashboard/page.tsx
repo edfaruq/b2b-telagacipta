@@ -1277,7 +1277,7 @@ export default function BuyerDashboardPage() {
                 A provider of the best and finest products from Indonesia for the global market.
               </p>
               <div className="hero-cta-row">
-                <Link href="/products?filter=priceHigh" className="btn-primary">
+                <Link href="/products?filter=latest" className="btn-primary">
                   Explore Our Products
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                     <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>

@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE_NAME, parseSessionValue } from "@/lib/auth";
 import { getDbPool } from "@/lib/db";
+import { parseThousandsId } from "@/lib/number-input";
 
 async function ensureAdmin() {
   const cookieStore = await cookies();
@@ -65,8 +66,8 @@ export async function PATCH(request: Request, context: Ctx) {
     return NextResponse.json({ message: "Short description must be at most 100 characters." }, { status: 400 });
   }
 
-  const harga_indikatif = Number(hargaRaw);
-  const stok = Number(stokRaw);
+  const harga_indikatif = parseThousandsId(hargaRaw);
+  const stok = Math.floor(parseThousandsId(stokRaw));
   if (!Number.isFinite(harga_indikatif) || harga_indikatif < 0) {
     return NextResponse.json({ message: "Invalid price." }, { status: 400 });
   }

@@ -3,6 +3,7 @@ import { formatPriceIdr } from "@/lib/catalog-product";
 import { getServerSession } from "@/lib/get-server-session";
 import { getDbPool } from "@/lib/db";
 import { paymentStatusLabel } from "@/lib/payment-status";
+import { deductStockForPaidInvoice, StockDeductionError } from "@/lib/deduct-stock-for-invoice";
 import { ensurePengirimanForInvoice } from "@/lib/ensure-pengiriman";
 import { generateUniqueReceiptNumber } from "@/lib/receipt-number";
 
@@ -153,6 +154,7 @@ export async function PATCH(request: Request) {
           return NextResponse.json({ message: "Invoice could not be marked as paid." }, { status: 409 });
         }
 
+        await deductStockForPaidInvoice(pay.id_invoice, conn);
         await ensurePengirimanForInvoice(pay.id_invoice, session.userId, conn);
       } else {
         const [updPay] = await conn.query(
@@ -181,7 +183,10 @@ export async function PATCH(request: Request) {
     } finally {
       conn.release();
     }
-  } catch {
+  } catch (err) {
+    if (err instanceof StockDeductionError) {
+      return NextResponse.json({ message: err.message }, { status: err.status });
+    }
     return NextResponse.json({ message: "Could not update payment." }, { status: 500 });
   }
 }

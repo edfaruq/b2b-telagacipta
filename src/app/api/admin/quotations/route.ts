@@ -90,7 +90,91 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ quotations });
+    const [rejectedRows] = await pool.query(
+      `SELECT
+         pm.id_permintaan,
+         pm.jumlah_permintaan,
+         pm.detail_permintaan,
+         pm.alamat_tujuan,
+         pm.tanggal_permintaan,
+         pl.nama,
+         pl.instansi,
+         pl.email,
+         pl.no_telepon,
+         pl.negara,
+         p.nama_produk,
+         p.slug,
+         p.satuan,
+         p.harga_indikatif,
+         pw.harga_ton,
+         pw.biaya_pengiriman,
+         pw.ekspedisi,
+         pw.total_penawaran,
+         pw.tanggal_penawaran,
+         (SELECT COUNT(*)
+          FROM permintaan x
+          WHERE x.id_permintaan <= pm.id_permintaan) AS request_sequence
+       FROM permintaan pm
+       INNER JOIN pelanggan pl ON pl.id_pelanggan = pm.id_pelanggan
+       INNER JOIN produk p ON p.id_produk = pm.id_produk
+       INNER JOIN penawaran pw ON pw.id_permintaan = pm.id_permintaan
+       WHERE pm.status_permintaan = 'ditolak'
+         AND pw.status_penawaran = 'ditolak'
+       ORDER BY pm.tanggal_permintaan DESC`
+    );
+
+    const rejected = (
+      rejectedRows as Array<
+        PendingQuotationRow & {
+          harga_ton: string | number;
+          biaya_pengiriman: string | number;
+          ekspedisi: string;
+          total_penawaran: string | number;
+          tanggal_penawaran: string | Date;
+        }
+      >
+    ).map((row) => {
+      const qty = Number(row.jumlah_permintaan) || 0;
+      const unitPrice =
+        typeof row.harga_indikatif === "string"
+          ? Number(row.harga_indikatif)
+          : Number(row.harga_indikatif);
+      const safeUnit = Number.isFinite(unitPrice) ? unitPrice : 0;
+      const satuan = (row.satuan || "kg").trim();
+      const tanggal =
+        row.tanggal_permintaan instanceof Date
+          ? row.tanggal_permintaan.toISOString()
+          : String(row.tanggal_permintaan);
+      const hargaTon = Number(row.harga_ton) || 0;
+      const biaya = Number(row.biaya_pengiriman) || 0;
+      const total = Number(row.total_penawaran) || 0;
+
+      return {
+        id_permintaan: row.id_permintaan,
+        requestSequence: Number(row.request_sequence) || 1,
+        jumlah_permintaan: qty,
+        detail_permintaan: row.detail_permintaan ?? "",
+        alamat_tujuan: row.alamat_tujuan,
+        tanggal_permintaan: tanggal,
+        nama: row.nama,
+        instansi: row.instansi,
+        email: row.email,
+        no_telepon: row.no_telepon,
+        negara: row.negara,
+        nama_produk: row.nama_produk,
+        slug: row.slug,
+        satuan,
+        unitPriceAmount: safeUnit,
+        unitPriceLabel: formatPriceIdr(safeUnit),
+        estimatedTotalLabel: formatPriceIdr(safeUnit * qty),
+        quotationUnitPriceLabel: formatPriceIdr(hargaTon),
+        shippingLabel: formatPriceIdr(biaya),
+        totalQuotationLabel: formatPriceIdr(total),
+        expedition: (row.ekspedisi ?? "").trim(),
+      };
+    });
+
+    return NextResponse.json({ quotations, rejected });
   } catch {
     return NextResponse.json({ message: "Could not load quotation requests." }, { status: 500 });
   }

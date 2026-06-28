@@ -1,43 +1,47 @@
 "use client";
 import type { MouseEvent } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
+
+type SessionState = {
+  authenticated: boolean;
+  email?: string;
+  role?: "pelanggan" | "admin";
+  name?: string;
+  foto_profil?: string;
+};
 
 export default function GlobalNavbar() {
   const pathname = usePathname();
-  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
-  const [sessionRole, setSessionRole] = useState<"pelanggan" | "admin" | null>(null);
+  const [session, setSession] = useState<SessionState>({ authenticated: false });
+
+  const loadSession = useCallback(async () => {
+    try {
+      const response = await fetch("/api/auth/session", { cache: "no-store" });
+      const result = (await response.json()) as SessionState;
+      if (result.authenticated && result.email) {
+        setSession(result);
+      } else {
+        setSession({ authenticated: false });
+      }
+    } catch {
+      setSession({ authenticated: false });
+    }
+  }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    const loadSession = async () => {
-      try {
-        const response = await fetch("/api/auth/session", { cache: "no-store" });
-        const result = (await response.json()) as {
-          authenticated?: boolean;
-          email?: string;
-          role?: "pelanggan" | "admin";
-        };
-        if (!isMounted) return;
-        if (result.authenticated && result.email) {
-          setSessionEmail(result.email);
-          setSessionRole(result.role ?? null);
-        } else {
-          setSessionEmail(null);
-          setSessionRole(null);
-        }
-      } catch {
-        if (!isMounted) return;
-        setSessionEmail(null);
-        setSessionRole(null);
-      }
-    };
     loadSession();
-    return () => {
-      isMounted = false;
+  }, [loadSession]);
+
+  useEffect(() => {
+    const onAvatarUpdated = () => {
+      void loadSession();
     };
-  }, []);
+    window.addEventListener("profile-avatar-updated", onAvatarUpdated);
+    return () => window.removeEventListener("profile-avatar-updated", onAvatarUpdated);
+  }, [loadSession]);
 
   const handleLogoClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (pathname === "/") {
@@ -46,7 +50,8 @@ export default function GlobalNavbar() {
     }
   };
 
-  const accountHref = sessionRole === "admin" ? "/admin" : "/account";
+  const accountHref = session.role === "admin" ? "/admin" : "/account";
+  const displayName = session.name ?? session.email?.split("@")[0] ?? "Account";
 
   return (
     <div className="market-nav-wrap">
@@ -57,30 +62,20 @@ export default function GlobalNavbar() {
           </Link>
         </div>
 
-        <div className="market-nav-search">
-          <span className="market-nav-search-icon">⌕</span>
-          <input className="market-nav-search-input" placeholder="Search products" />
-        </div>
-
         <div className="market-nav-right">
-          <div className="market-nav-divider" />
-          <button className="market-lang-btn" type="button">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth="1.4" />
-              <path d="M10 1.5C10 1.5 7 5 7 10C7 15 10 18.5 10 18.5M10 1.5C10 1.5 13 5 13 10C13 15 10 18.5 10 18.5M1.5 10H18.5" stroke="currentColor" strokeWidth="1.4" />
-            </svg>
-            EN
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-          </button>
-          {sessionEmail ? (
+          {session.authenticated && session.email ? (
             <Link
               href={accountHref}
-              className="market-login-btn"
-              title={sessionRole === "admin" ? "Admin dashboard" : "My account"}
+              className="market-profile-btn"
+              title={session.email}
+              aria-label={`${displayName} account`}
             >
-              {sessionEmail}
+              <ProfileAvatar
+                name={displayName}
+                src={session.foto_profil}
+                size={36}
+                className="market-profile-btn__avatar"
+              />
             </Link>
           ) : (
             <a className="market-login-btn" href="/login">

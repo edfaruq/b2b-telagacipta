@@ -41,7 +41,6 @@ type Row = {
   tanggal_diterima: string | Date | null;
   rating: number | null;
   feedback: string | null;
-  biteship_courier_code: string | null;
 };
 
 export async function GET() {
@@ -93,8 +92,7 @@ export async function GET() {
          pg.tanggal_pengiriman,
          pg.tanggal_diterima,
          pg.rating,
-         pg.feedback,
-         pg.biteship_courier_code
+         pg.feedback
        FROM permintaan pm
        INNER JOIN produk p ON p.id_produk = pm.id_produk
        INNER JOIN penawaran pw ON pw.id_permintaan = pm.id_permintaan
@@ -209,7 +207,6 @@ export async function GET() {
                       canSubmitFeedback:
                         row.status_pengiriman === "diterima" &&
                         (row.rating == null || Number(row.rating) < 1),
-                      biteshipCourierCode: row.biteship_courier_code?.trim() || null,
                       canTrackShipment:
                         row.status_pengiriman === "dikirim" ||
                         row.status_pengiriman === "diterima",

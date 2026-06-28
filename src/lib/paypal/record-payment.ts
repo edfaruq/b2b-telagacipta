@@ -1,5 +1,6 @@
 import type { PoolConnection } from "mysql2/promise";
 import { getDbPool } from "@/lib/db";
+import { deductStockForPaidInvoice } from "@/lib/deduct-stock-for-invoice";
 import { ensurePengirimanForInvoice } from "@/lib/ensure-pengiriman";
 import { generateUniqueReceiptNumber } from "@/lib/receipt-number";
 
@@ -93,6 +94,7 @@ export async function recordPayPalCapture(params: {
       throw new Error("Invoice could not be marked as paid.");
     }
 
+    await deductStockForPaidInvoice(params.idInvoice, conn);
     await ensurePengirimanForInvoice(params.idInvoice, null, conn);
 
     await conn.commit();

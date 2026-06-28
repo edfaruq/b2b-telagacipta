@@ -5,6 +5,7 @@ import { AdminAccountShell, type AdminMenuKey } from "@/components/admin/AdminAc
 import { CreateProduct } from "@/components/admin/CreateProduct";
 import { ManageOrdersPanel } from "@/components/admin/ManageOrdersPanel";
 import { ManageProducts } from "@/components/admin/ManageProducts";
+import { LaporanPanel } from "@/components/admin/LaporanPanel";
 import { alertFailBanner } from "@/lib/alertFailBanner";
 
 type UserRow = {
@@ -74,6 +75,12 @@ const styles = `
     background: #f59e0b;
     animation: pulse-dot 1.4s ease-in-out infinite;
     margin-right: 7px;
+  }
+
+  @media (max-width: 768px) {
+    .admin-user-detail-grid {
+      grid-template-columns: 1fr !important;
+    }
   }
 `;
 
@@ -159,6 +166,18 @@ const IconList = () => (
       d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"
       stroke="currentColor"
       strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const IconReport = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+    <path
+      d="M9 17v-6M13 17V7M17 17v-3M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H9L5 7v12a2 2 0 002 2z"
+      stroke="currentColor"
+      strokeWidth="1.85"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
@@ -254,6 +273,7 @@ export default function AdminVerificationsPage() {
       label: "Manage Orders",
       icon: <IconOrders />,
     },
+    { key: "laporan" as const, label: "Reports", icon: <IconReport /> },
   ];
 
   return (
@@ -620,6 +640,7 @@ export default function AdminVerificationsPage() {
                 {/* Modal body */}
                 <div style={{ padding: "18px" }}>
                   <div
+                    className="admin-user-detail-grid"
                     style={{
                       display: "grid",
                       gridTemplateColumns: "1fr 1fr",
@@ -675,8 +696,10 @@ export default function AdminVerificationsPage() {
           <ManageOrdersPanel />
           ) : activeMenu === "create-product" ? (
           <CreateProduct />
-          ) : (
+          ) : activeMenu === "manage-product" ? (
           <ManageProducts />
+          ) : (
+          <LaporanPanel />
           )}
       </AdminAccountShell>
     </>

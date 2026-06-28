@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { alertFailBanner } from "@/lib/alertFailBanner";
 import { formatPriceIdr } from "@/lib/catalog-product";
+import { formatThousandsId } from "@/lib/number-input";
 import { normalizeQuantityOnBlur, parseQuantityInput } from "@/lib/quantity-input";
 
 type Props = {
@@ -30,7 +31,7 @@ export function RequestQuotationModal({
 }: Props) {
   const [quantity, setQuantity] = useState(initialQuantity < 1 ? 1 : initialQuantity);
   const [quantityInput, setQuantityInput] = useState(
-    String(initialQuantity < 1 ? 1 : initialQuantity)
+    formatThousandsId(initialQuantity < 1 ? 1 : initialQuantity)
   );
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [notes, setNotes] = useState("");
@@ -43,7 +44,7 @@ export function RequestQuotationModal({
     if (!open) return;
     const qty = initialQuantity < 1 ? 1 : initialQuantity;
     setQuantity(qty);
-    setQuantityInput(String(qty));
+    setQuantityInput(formatThousandsId(qty));
     setError("");
     setSuccess("");
     setSubmitting(false);

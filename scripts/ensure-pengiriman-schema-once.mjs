@@ -54,16 +54,6 @@ if (!(await hasColumn("feedback"))) {
   console.log("Added feedback");
 }
 
-if (!(await hasColumn("biteship_order_id"))) {
-  await connection.query(
-    `ALTER TABLE pengiriman
-       ADD COLUMN biteship_order_id VARCHAR(64) NULL AFTER nomor_resi,
-       ADD COLUMN biteship_courier_code VARCHAR(40) NULL AFTER biteship_order_id,
-       ADD COLUMN biteship_courier_type VARCHAR(40) NULL AFTER biteship_courier_code`
-  );
-  console.log("Added Biteship columns");
-}
-
 const [cols] = await connection.query(
   `SELECT COLUMN_NAME FROM information_schema.COLUMNS
    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pengiriman'

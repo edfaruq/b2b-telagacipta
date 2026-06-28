@@ -51,6 +51,7 @@ export type InvoiceDetail = {
   paymentPending?: boolean;
   paymentRejected?: boolean;
   paymentRejectedMessage?: string | null;
+  paymentMethodLabel?: string | null;
 };
 
 type Props = {
@@ -94,26 +95,31 @@ export function InvoiceViewModal({ invoiceId, onClose, onPayAgain }: Props) {
     };
   }, [invoiceId]);
 
-  const handleDownloadPdf = async () => {
+  const openInvoicePdf = async () => {
     if (!invoice?.canDownloadPdf) return;
     setDownloadError("");
     setDownloading(true);
+    const previewTab = window.open("about:blank", "_blank");
     try {
       const res = await fetch(`/api/invoices/${invoiceId}/pdf`, { cache: "no-store" });
       if (!res.ok) {
+        previewTab?.close();
         const data = (await res.json()) as { message?: string };
-        setDownloadError(data.message ?? "Could not download PDF.");
+        setDownloadError(data.message ?? "Could not open PDF.");
         return;
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${invoice.number}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      if (previewTab) {
+        previewTab.location.href = url;
+        previewTab.opener = null;
+      } else {
+        window.open(url, "_blank");
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
-      setDownloadError("Could not download PDF.");
+      previewTab?.close();
+      setDownloadError("Could not open PDF.");
     } finally {
       setDownloading(false);
     }
@@ -183,6 +189,12 @@ export function InvoiceViewModal({ invoiceId, onClose, onPayAgain }: Props) {
               ) : null}
 
               <div className="inv-grid">
+                {invoice.paymentMethodLabel ? (
+                  <div className="inv-field inv-field--full">
+                    <span className="inv-label">Payment method</span>
+                    <p className="inv-value">{invoice.paymentMethodLabel}</p>
+                  </div>
+                ) : null}
                 <div className="inv-field">
                   <span className="inv-label">Request</span>
                   <p className="inv-value">{invoice.requestIdLabel}</p>
@@ -250,11 +262,11 @@ export function InvoiceViewModal({ invoiceId, onClose, onPayAgain }: Props) {
             <button
               type="button"
               className="inv-btn-download"
-              onClick={handleDownloadPdf}
+              onClick={() => void openInvoicePdf()}
               disabled={downloading}
             >
               {!downloading ? <IconDownload /> : null}
-              <span>{downloading ? "Preparing…" : "Download Invoice"}</span>
+              <span>{downloading ? "Preparing…" : "View Invoice"}</span>
             </button>
           ) : null}
         </div>
@@ -374,15 +386,21 @@ export function InvoiceViewModal({ invoiceId, onClose, onPayAgain }: Props) {
         .inv-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 18px 20px;
-          margin-bottom: 22px;
+          gap: 22px 28px;
+          margin-bottom: 28px;
+        }
+        .inv-field--full {
+          grid-column: 1 / -1;
+          padding-bottom: 6px;
+          margin-bottom: 4px;
+          border-bottom: 1px solid #edf2ff;
         }
         .inv-bill-to {
-          margin-bottom: 22px;
+          margin-bottom: 28px;
         }
         .inv-bill-to .inv-value {
-          margin: 0 0 6px;
-          line-height: 1.5;
+          margin: 0 0 8px;
+          line-height: 1.55;
         }
         .inv-label {
           display: block;
@@ -391,13 +409,14 @@ export function InvoiceViewModal({ invoiceId, onClose, onPayAgain }: Props) {
           letter-spacing: 0.05em;
           text-transform: uppercase;
           color: #6a84b0;
-          margin-bottom: 6px;
+          margin-bottom: 10px;
         }
         .inv-value {
           margin: 0;
           font-size: 15px;
           color: #1a3566;
           font-weight: 500;
+          line-height: 1.45;
         }
         .inv-muted { color: #6a84b0; font-size: 14px; }
         .inv-error {

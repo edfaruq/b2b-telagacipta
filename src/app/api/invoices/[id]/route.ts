@@ -62,6 +62,7 @@ export async function GET(_request: Request, context: RouteContext) {
         quantity: row.quantity,
         unit: row.unit,
         lines: row.lines,
+        paymentMethodLabel: row.paymentMethodLabel,
         payment: row.payment
           ? {
               status: row.payment.status,

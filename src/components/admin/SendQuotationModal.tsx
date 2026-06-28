@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { computeTotalPenawaran, formatPenawaranFields } from "@/lib/penawaran";
+import {
+  formatAmountOnInput,
+  formatNumberFieldValue,
+  parseThousandsId,
+} from "@/lib/number-input";
 import type { PendingQuotationRow } from "@/components/admin/PendingQuotationsPanel";
 
 type Props = {
@@ -10,12 +15,6 @@ type Props = {
   onClose: () => void;
   onSent: () => Promise<void>;
 };
-
-function parseAmountInput(value: string): number {
-  const cleaned = value.replace(/[^\d.,]/g, "").replace(",", ".");
-  const n = Number.parseFloat(cleaned);
-  return Number.isFinite(n) ? n : NaN;
-}
 
 const EXPEDITION_OPTIONS = [
   "JNE",
@@ -47,9 +46,11 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
 
   useEffect(() => {
     if (indicativeUnit > 0) {
-      setHargaInput(String(Math.round(indicativeUnit)));
+      setHargaInput(formatNumberFieldValue(indicativeUnit, "amount"));
+    } else {
+      setHargaInput("");
     }
-    setBiayaInput("0");
+    setBiayaInput(formatNumberFieldValue(0));
     setExpeditionChoice(EXPEDITION_OPTIONS[0]);
     setExpeditionOther("");
     setRatesMock(false);
@@ -64,8 +65,8 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
     };
   }, []);
 
-  const hargaTon = parseAmountInput(hargaInput);
-  const biayaPengiriman = parseAmountInput(biayaInput);
+  const hargaTon = parseThousandsId(hargaInput);
+  const biayaPengiriman = parseThousandsId(biayaInput);
   const total = computeTotalPenawaran(
     Number.isFinite(hargaTon) ? hargaTon : 0,
     row.jumlah_permintaan,
@@ -82,14 +83,14 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
 
   const handleEstimateShipping = async () => {
     if (!expeditionValue) {
-      setError("Select expedition before checking Biteship rates.");
+      setError("Select expedition before generating shipping cost.");
       return;
     }
     setRatesLoading(true);
     setRatesMock(false);
     setError("");
     try {
-      const res = await fetch("/api/admin/biteship/rates", {
+      const res = await fetch("/api/admin/shipping/rates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -121,10 +122,10 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
             r.company.toLowerCase().includes(needle) ||
             expeditionValue.toLowerCase().includes(r.courierName.toLowerCase())
         ) ?? list[0];
-      setBiayaInput(String(Math.round(match.price)));
+      setBiayaInput(formatNumberFieldValue(Math.round(match.price)));
       setRatesMock(Boolean(data.mock));
     } catch {
-      setError("Could not reach Biteship rates API.");
+      setError("Could not reach shipping rates service.");
     } finally {
       setRatesLoading(false);
     }
@@ -248,7 +249,7 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
                 inputMode="decimal"
                 className="sq-input sq-currency-input"
                 value={hargaInput}
-                onChange={(e) => setHargaInput(e.target.value)}
+                onChange={(e) => setHargaInput(formatAmountOnInput(e.target.value))}
                 required
               />
             </div>
@@ -319,7 +320,7 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
                   inputMode="decimal"
                   className="sq-input sq-currency-input"
                   value={biayaInput}
-                  onChange={(e) => setBiayaInput(e.target.value)}
+                  onChange={(e) => setBiayaInput(formatAmountOnInput(e.target.value))}
                   required
                 />
               </div>
@@ -495,6 +496,26 @@ export function SendQuotationModal({ row, onClose, onSent }: Props) {
           border: 1px solid #fde68a;
           border-radius: 6px;
           padding: 2px 8px;
+        }
+        @media (max-width: 768px) {
+          .sq-dialog {
+            width: calc(100vw - 24px) !important;
+            max-height: calc(100dvh - 24px);
+          }
+          .sq-dialog__body {
+            padding: 16px;
+          }
+          .sq-dialog__footer {
+            padding: 0 16px 16px;
+          }
+          .sq-dialog__footer .acct-btn-group {
+            flex-direction: column-reverse;
+            width: 100%;
+          }
+          .sq-dialog__footer .acct-btn {
+            width: 100%;
+            justify-content: center;
+          }
         }
       `}</style>
     </div>,

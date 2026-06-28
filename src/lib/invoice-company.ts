@@ -6,7 +6,7 @@ export const INVOICE_COMPANY = {
     "Kuningan Tim., Kecamatan Setiabudi, Kota Jakarta Selatan,",
     "Daerah Khusus Ibukota Jakarta 12950, Indonesia",
   ],
-  email: "export@telagacipta.com",
+  email: "telagacipta.indonesia@gmail.com",
 } as const;
 
 export const INVOICE_LOGO_PATH = "public/images/logo-telagacipta.png";

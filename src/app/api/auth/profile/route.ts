@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/get-server-session";
 import { getDbPool } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth";
+import { ensurePelangganSchema } from "@/lib/ensure-pelanggan-schema";
 
 type PelangganProfileRow = {
   nama: string;
@@ -10,6 +11,7 @@ type PelangganProfileRow = {
   no_telepon: string;
   alamat: string;
   negara: string;
+  foto_profil: string;
 };
 
 export async function GET() {
@@ -23,8 +25,9 @@ export async function GET() {
 
   try {
     const pool = getDbPool();
+    await ensurePelangganSchema(pool);
     const [rows] = await pool.query(
-      "SELECT nama, email, instansi, no_telepon, alamat, negara FROM pelanggan WHERE id_pelanggan = ? LIMIT 1",
+      "SELECT nama, email, instansi, no_telepon, alamat, negara, foto_profil FROM pelanggan WHERE id_pelanggan = ? LIMIT 1",
       [session.userId]
     );
     const profile = (rows as PelangganProfileRow[])[0];

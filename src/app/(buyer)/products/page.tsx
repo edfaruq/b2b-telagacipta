@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import GlobalFooter from "@/components/GlobalFooter";
 import { alertFailBanner } from "@/lib/alertFailBanner";
 
@@ -21,6 +21,8 @@ type CatalogItem = {
 };
 
 export default function BuyerProductsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -30,10 +32,16 @@ export default function BuyerProductsPage() {
   const [filter, setFilter] = useState<"latest" | "favorite" | "priceHigh" | "priceLow">(
     parseFilter(searchParams.get("filter"))
   );
+  const [pageSize, setPageSize] = useState(12);
+  const [visibleCount, setVisibleCount] = useState(12);
 
   useEffect(() => {
     setFilter(parseFilter(searchParams.get("filter")));
   }, [searchParams]);
+
+  useEffect(() => {
+    setVisibleCount(pageSize);
+  }, [pageSize, query, filter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +89,29 @@ export default function BuyerProductsPage() {
 
     return list;
   }, [items, query, filter]);
+
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice(0, visibleCount),
+    [filteredProducts, visibleCount]
+  );
+  const hasMore = visibleCount < filteredProducts.length;
+  const remainingCount = filteredProducts.length - visibleCount;
+
+  const loadMoreProducts = () => {
+    setVisibleCount((prev) => Math.min(prev + pageSize, filteredProducts.length));
+  };
+
+  const applyFilter = (next: "latest" | "favorite" | "priceHigh" | "priceLow") => {
+    setFilter(next);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "latest") {
+      params.delete("filter");
+    } else {
+      params.set("filter", next);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   return (
     <>
@@ -240,13 +271,38 @@ export default function BuyerProductsPage() {
           .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .product-title { font-size: 34px; }
           .product-name { font-size: 26px; }
-          .product-price { font-size: 10px; }
+          .product-price { font-size: 18px; }
         }
         @media (max-width: 540px) {
           .product-wrap {
             padding: 24px 14px 44px;
           }
           .product-grid { grid-template-columns: 1fr; }
+        }
+        .load-more-wrap {
+          display: flex;
+          justify-content: center;
+          margin-top: 36px;
+        }
+        .load-more-btn {
+          border: 1px solid #d0deff;
+          background: #ffffff;
+          color: #0b47b8;
+          border-radius: 999px;
+          padding: 12px 28px;
+          font-size: 14px;
+          font-weight: 700;
+          font-family: inherit;
+          cursor: pointer;
+          transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .load-more-btn:hover {
+          background: #f7faff;
+          border-color: #0b47b8;
+        }
+        .load-more-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
         }
       `}</style>
 
@@ -309,7 +365,9 @@ export default function BuyerProductsPage() {
               className="select"
               value={filter}
               onChange={(event) =>
-                setFilter(event.target.value as "latest" | "favorite" | "priceHigh" | "priceLow")
+                applyFilter(
+                  event.target.value as "latest" | "favorite" | "priceHigh" | "priceLow"
+                )
               }
               aria-label="Filter products"
               disabled={loading}
@@ -320,10 +378,16 @@ export default function BuyerProductsPage() {
               <option value="priceLow">Lower Price</option>
             </select>
 
-            <select className="select" defaultValue="12" aria-label="Products per page">
-              <option value="12">12</option>
-              <option value="24">24</option>
-              <option value="48">48</option>
+            <select
+              className="select"
+              value={pageSize}
+              onChange={(event) => setPageSize(Number(event.target.value))}
+              aria-label="Products per page"
+              disabled={loading}
+            >
+              <option value={12}>12</option>
+              <option value={24}>24</option>
+              <option value={48}>48</option>
             </select>
           </div>
 
@@ -334,7 +398,7 @@ export default function BuyerProductsPage() {
           ) : null}
 
           <section className="product-grid">
-            {filteredProducts.map((item, index) => (
+            {visibleProducts.map((item, index) => (
               <Link
                 key={item.slug}
                 className="product-card"
@@ -359,6 +423,19 @@ export default function BuyerProductsPage() {
               </Link>
             ))}
           </section>
+
+          {!loading && !loadError && hasMore ? (
+            <div className="load-more-wrap">
+              <button
+                type="button"
+                className="load-more-btn"
+                onClick={loadMoreProducts}
+              >
+                View more products
+                {remainingCount > 0 ? ` (${remainingCount} more)` : ""}
+              </button>
+            </div>
+          ) : null}
         </main>
       </div>
       <GlobalFooter />

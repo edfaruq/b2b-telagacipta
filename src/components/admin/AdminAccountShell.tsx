@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { AccountShellSkeleton } from "@/components/account/AccountShellSkeleton";
 import { NavCountBadge } from "@/components/account/NavCountBadge";
+import { AccountShellMobileBar } from "@/components/account/AccountShellMobileBar";
 import { accountShellStyles } from "@/components/account/accountShellStyles";
+import { useAccountShellMenu } from "@/components/account/useAccountShellMenu";
 import { profileInitials } from "@/lib/profile-initials";
 
 export type AdminMenuKey =
   | "user-dashboard"
   | "manage-orders"
   | "create-product"
-  | "manage-product";
+  | "manage-product"
+  | "laporan";
 
 type NavItem = {
   key: AdminMenuKey;
@@ -132,6 +135,7 @@ export function AdminAccountShell({ activeMenu, onMenuChange, navItems, children
   };
 
   const displayName = email ? email.split("@")[0] : "Admin";
+  const { menuOpen, closeMenu, toggleMenu } = useAccountShellMenu();
 
   if (!ready) {
     return (
@@ -140,10 +144,27 @@ export function AdminAccountShell({ activeMenu, onMenuChange, navItems, children
   }
 
   return (
-    <div className="account-shell account-shell--admin">
-      <aside className="account-shell-sidebar">
+    <div className={`account-shell account-shell--admin${menuOpen ? " is-menu-open" : ""}`}>
+      <div className="account-shell-main">
+        <AccountShellMobileBar title="Admin menu" menuOpen={menuOpen} onToggle={toggleMenu} />
+        {children}
+      </div>
+
+      <button
+        type="button"
+        className="account-shell-backdrop"
+        aria-label="Close menu"
+        aria-hidden={!menuOpen}
+        onClick={closeMenu}
+        tabIndex={menuOpen ? 0 : -1}
+      />
+      <aside
+        id="account-shell-sidebar"
+        className="account-shell-sidebar"
+        aria-hidden={!menuOpen}
+      >
         <div className="account-shell-brand">
-          <Link href="/admin" className="account-shell-brand-link" aria-label="Telagacipta Admin">
+          <Link href="/admin" className="account-shell-brand-link" aria-label="Telagacipta Admin" onClick={closeMenu}>
             <img
               src="/images/logo-telagacipta.png"
               alt="Telagacipta"
@@ -167,7 +188,10 @@ export function AdminAccountShell({ activeMenu, onMenuChange, navItems, children
               key={item.key}
               type="button"
               className={`account-shell-nav-btn${activeMenu === item.key ? " is-active" : ""}`}
-              onClick={() => onMenuChange(item.key)}
+              onClick={() => {
+                onMenuChange(item.key);
+                closeMenu();
+              }}
             >
               {item.icon}
               <span className="account-shell-nav-label">{item.label}</span>
@@ -185,13 +209,18 @@ export function AdminAccountShell({ activeMenu, onMenuChange, navItems, children
           ))}
         </nav>
 
-        <button type="button" className="account-shell-logout" onClick={handleLogout}>
+        <button
+          type="button"
+          className="account-shell-logout"
+          onClick={() => {
+            closeMenu();
+            void handleLogout();
+          }}
+        >
           <IconLogout />
           Logout
         </button>
       </aside>
-
-      <div className="account-shell-main">{children}</div>
 
       <style>{accountShellStyles}</style>
     </div>

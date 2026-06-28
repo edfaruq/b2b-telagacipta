@@ -1,10 +1,5 @@
 import { NextResponse } from "next/server";
-import { BiteshipApiError } from "@/lib/biteship/client";
 import { buildRateItemsFromOrder, fetchShippingRates } from "@/lib/shipping/fetch-rates";
-import {
-  isLiveBiteshipEnabled,
-  isMockShippingEnabled,
-} from "@/lib/shipping/shipping-provider";
 import { getDbPool } from "@/lib/db";
 import { getServerSession } from "@/lib/get-server-session";
 import { ensurePengirimanSchema } from "@/lib/ensure-pengiriman-schema";
@@ -22,23 +17,12 @@ type RatesBody = {
   quantity?: number;
   value_idr?: number;
   product_name?: string;
-  couriers?: string;
 };
 
 export async function POST(request: Request) {
   const session = await getServerSession();
   if (!session || session.role !== "admin") {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
-  }
-
-  if (!isMockShippingEnabled() && !isLiveBiteshipEnabled()) {
-    return NextResponse.json(
-      {
-        message:
-          "Live Biteship is not configured. Set SHIPPING_PROVIDER=mock (default) or BITESHIP_API_KEY with SHIPPING_PROVIDER=biteship.",
-      },
-      { status: 503 }
-    );
   }
 
   let body: RatesBody;
@@ -109,23 +93,18 @@ export async function POST(request: Request) {
       destinationCountry,
       quantity,
       expedition: expedition || undefined,
-      couriers: body.couriers,
       items,
     });
 
     return NextResponse.json({
       rates,
-      mock: isMockShippingEnabled(),
+      mock: true,
       expedition: expedition || null,
       destinationAddress,
       destinationCountry,
     });
   } catch (err) {
-    if (err instanceof BiteshipApiError) {
-      console.error("[admin/biteship/rates]", err.message, err.details);
-      return NextResponse.json({ message: err.message }, { status: err.status >= 400 ? err.status : 502 });
-    }
-    console.error("[admin/biteship/rates]", err);
+    console.error("[admin/shipping/rates]", err);
     return NextResponse.json({ message: "Could not fetch shipping rates." }, { status: 500 });
   }
 }

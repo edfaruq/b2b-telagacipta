@@ -491,14 +491,15 @@ export function BuyerOrdersPanel() {
                         <strong>Courier:</strong>{" "}
                         {item.invoice.shipping.expedition || item.offer.expedition || "—"}
                       </p>
-                      {item.invoice.shipping.trackingNumber ? (
-                        <p className="mq-ship-line">
-                          <strong>Tracking number:</strong> {item.invoice.shipping.trackingNumber}
-                        </p>
-                      ) : null}
                       {item.invoice.shipping.canTrackShipment &&
                       item.invoice.shipping.trackingNumber ? (
-                        <ShippingLiveStatus shipmentId={item.invoice.shipping.id} />
+                        <ShippingLiveStatus
+                          shipmentId={item.invoice.shipping.id}
+                          trackingNumber={item.invoice.shipping.trackingNumber}
+                          shipmentStatus={item.invoice.shipping.status}
+                          shippedAt={item.invoice.shipping.shippedAt}
+                          deliveredAt={item.invoice.shipping.deliveredAt}
+                        />
                       ) : null}
                       {!item.invoice.shipping.trackingNumber &&
                       item.invoice.shipping.status === "diproses" ? (
@@ -700,7 +701,7 @@ export function BuyerOrdersPanel() {
         }
         .mq-doc-btns {
           display: flex;
-          flex-wrap: nowrap;
+          flex-wrap: wrap;
           gap: 8px;
         }
         .mq-pay-btn {
@@ -816,6 +817,10 @@ export function BuyerOrdersPanel() {
           background: #f7faff;
           border: 1px solid #c9dcff;
           border-radius: 12px;
+          min-width: 0;
+        }
+        .mq-invoice-bar > div:first-child {
+          min-width: 0;
         }
         .mq-shipping {
           margin-top: 14px;
@@ -860,6 +865,31 @@ export function BuyerOrdersPanel() {
           line-height: 1.45;
         }
         .mq-ship-line strong { color: #051c4a; }
+        .mq-ship-tracking-block { margin-top: 4px; }
+        .mq-ship-line--track {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+        }
+        .mq-track-number {
+          font-family: ui-monospace, "Cascadia Code", monospace;
+          font-size: 13px;
+          color: #0b47b8;
+          word-break: break-all;
+        }
+        .mq-copy-track-btn {
+          border: 1px solid #d0deff;
+          background: #fff;
+          color: #0b47b8;
+          border-radius: 999px;
+          padding: 4px 12px;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: inherit;
+          cursor: pointer;
+        }
+        .mq-copy-track-btn:hover { background: #f7faff; }
         .mq-ship-muted {
           margin: 0 0 10px;
           font-size: 13px;
@@ -1016,6 +1046,36 @@ export function BuyerOrdersPanel() {
           }
           .mq-invoice-actions {
             justify-content: flex-start;
+            width: 100%;
+          }
+          .mq-doc-btns {
+            width: 100%;
+          }
+          .mq-doc-btns .mq-receipt-btn,
+          .mq-doc-btns .mq-invoice-btn {
+            flex: 1 1 calc(50% - 4px);
+            min-width: 0;
+            justify-content: center;
+            text-align: center;
+          }
+        }
+        @media (max-width: 480px) {
+          .mq-offer-grid { grid-template-columns: 1fr; }
+          .mq-card { padding: 16px; }
+          .mq-invoice-actions {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .mq-doc-btns {
+            flex-direction: column;
+            width: 100%;
+          }
+          .mq-pay-btn,
+          .mq-receipt-btn,
+          .mq-invoice-btn {
+            width: 100%;
+            justify-content: center;
+            text-align: center;
           }
         }
       `}</style>

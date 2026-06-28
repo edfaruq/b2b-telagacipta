@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS penawaran (
   ekspedisi VARCHAR(120) NOT NULL DEFAULT '',
   total_penawaran DECIMAL(12,2) NOT NULL,
   tanggal_penawaran DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  status_penawaran ENUM('draft', 'dikirim', 'disetujui', 'ditolak') NOT NULL DEFAULT 'dikirim',
+  status_penawaran ENUM('dikirim', 'disetujui', 'ditolak') NOT NULL DEFAULT 'dikirim',
   CONSTRAINT fk_penawaran_permintaan FOREIGN KEY (id_permintaan) REFERENCES permintaan (id_permintaan),
   CONSTRAINT fk_penawaran_admin FOREIGN KEY (id_admin) REFERENCES admin (id_admin)
 ) ENGINE=InnoDB;

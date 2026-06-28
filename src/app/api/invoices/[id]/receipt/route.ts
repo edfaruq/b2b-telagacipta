@@ -4,7 +4,7 @@ import { INVOICE_COMPANY } from "@/lib/invoice-company";
 import { ensurePaymentReceipt } from "@/lib/ensure-payment-receipt";
 import { getServerSession } from "@/lib/get-server-session";
 import { getDbPool } from "@/lib/db";
-import { PAYMENT_BANK } from "@/lib/payment-bank";
+import { paymentMethodDetail, paymentMethodLabel } from "@/lib/payment-method";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -33,7 +33,8 @@ export async function GET(_request: Request, context: RouteContext) {
          pb.id_pembayaran,
          pb.nomor_receipt,
          pb.tanggal_validasi,
-         pb.status_pembayaran
+         pb.status_pembayaran,
+         pb.metode_pembayaran
        FROM invoice inv
        INNER JOIN penawaran pw ON pw.id_penawaran = inv.id_penawaran
        INNER JOIN permintaan pm ON pm.id_permintaan = pw.id_permintaan
@@ -52,6 +53,7 @@ export async function GET(_request: Request, context: RouteContext) {
         nomor_receipt: string | null;
         tanggal_validasi: string | Date | null;
         status_pembayaran: string | null;
+        metode_pembayaran: string | null;
       }>
     )[0];
 
@@ -100,8 +102,8 @@ export async function GET(_request: Request, context: RouteContext) {
         }),
         receiptNumber: nomorReceipt,
         invoiceNumber: row.nomor_invoice,
-        paymentMethod: `Bank transfer — ${PAYMENT_BANK.bankName}`,
-        accountDisplay: `${PAYMENT_BANK.accountNumber} — ${PAYMENT_BANK.accountHolder}`,
+        paymentMethod: paymentMethodLabel(row.metode_pembayaran),
+        accountDisplay: paymentMethodDetail(row.metode_pembayaran),
       },
     });
   } catch (err) {

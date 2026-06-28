@@ -205,13 +205,20 @@ type QuotationItem = {
   offer: QuotationOffer | null;
 };
 
+type RequestTab = "active" | "closed";
+
 export function BuyerQuotationsPanel() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [quotations, setQuotations] = useState<QuotationItem[]>([]);
+  const [requestTab, setRequestTab] = useState<RequestTab>("active");
   const [error, setError] = useState("");
   const [actionMessage, setActionMessage] = useState("");
   const [processingId, setProcessingId] = useState<number | null>(null);
+
+  const activeRequests = quotations.filter((q) => q.status !== "ditolak");
+  const closedRequests = quotations.filter((q) => q.status === "ditolak");
+  const visibleRequests = requestTab === "active" ? activeRequests : closedRequests;
 
   const loadQuotations = async () => {
     const res = await fetch("/api/quotations", { cache: "no-store" });
@@ -268,6 +275,7 @@ export function BuyerQuotationsPanel() {
         return;
       }
       setActionMessage(data.message ?? "Quotation updated.");
+      setRequestTab("closed");
       await loadQuotations();
     } catch {
       setActionMessage("Could not reach the server.");
@@ -308,8 +316,50 @@ export function BuyerQuotationsPanel() {
             </div>
           ) : (
             <>
+            {!loading && quotations.length > 0 ? (
+              <div className="rq-tabs" role="tablist" aria-label="My requests">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={requestTab === "active"}
+                  className={`rq-tab${requestTab === "active" ? " is-active" : ""}`}
+                  onClick={() => setRequestTab("active")}
+                >
+                  Active requests
+                  <span
+                    className={`rq-tab-badge${activeRequests.length === 0 ? " rq-tab-badge--empty" : ""}`}
+                  >
+                    {activeRequests.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={requestTab === "closed"}
+                  className={`rq-tab${requestTab === "closed" ? " is-active" : ""}`}
+                  onClick={() => setRequestTab("closed")}
+                >
+                  Closed requests
+                </button>
+              </div>
+            ) : null}
+
+            {visibleRequests.length === 0 ? (
+              <div className="quotations-empty" style={{ marginTop: 16 }}>
+                <p>
+                  {requestTab === "closed"
+                    ? "No closed requests yet."
+                    : "No active requests. Check closed requests or submit a new one."}
+                </p>
+                {requestTab === "active" ? (
+                  <Link href="/products" className="quotations-browse-btn">
+                    Submit a request
+                  </Link>
+                ) : null}
+              </div>
+            ) : (
             <div className="quotations-list">
-              {quotations.map((item, index) => {
+              {visibleRequests.map((item, index) => {
                 const statusStyle = permintaanStatusStyle(item.status);
                 const qtyLabel = Number.isInteger(item.quantity)
                   ? String(item.quantity)
@@ -444,10 +494,13 @@ export function BuyerQuotationsPanel() {
                 );
               })}
             </div>
+            )}
+
+            {requestTab === "active" && visibleRequests.length > 0 ? (
             <footer
               className="quotations-footer"
               style={{
-                animationDelay: `${Math.min(quotations.length, 10) * 70 + 160}ms`,
+                animationDelay: `${Math.min(visibleRequests.length, 10) * 70 + 160}ms`,
               }}
             >
               <div className="quotations-footer-divider" aria-hidden />
@@ -459,6 +512,7 @@ export function BuyerQuotationsPanel() {
                 Browse products
               </Link>
             </footer>
+            ) : null}
             </>
           )}
         </div>
@@ -476,6 +530,59 @@ export function BuyerQuotationsPanel() {
         }
         .quotations-header {
           margin-bottom: 28px;
+        }
+        .rq-tabs {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin: 0 0 22px;
+        }
+        .rq-tab {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border: 1px solid #c9dcff;
+          border-radius: 999px;
+          padding: 9px 16px;
+          background: #fff;
+          color: #4a6490;
+          font-size: 14px;
+          font-weight: 600;
+          font-family: inherit;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .rq-tab:hover {
+          background: #f7faff;
+          border-color: #0b47b8;
+          color: #0b47b8;
+        }
+        .rq-tab.is-active {
+          background: #0b47b8;
+          border-color: #0b47b8;
+          color: #fff;
+        }
+        .rq-tab-badge {
+          min-width: 20px;
+          padding: 2px 7px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 700;
+          line-height: 1.2;
+          text-align: center;
+        }
+        .rq-tab:not(.is-active) .rq-tab-badge {
+          background: #fffbeb;
+          color: #b45309;
+          border: 1px solid #fde68a;
+        }
+        .rq-tab.is-active .rq-tab-badge {
+          background: rgba(255, 255, 255, 0.22);
+          color: #fff;
+          border: 1px solid rgba(255, 255, 255, 0.35);
+        }
+        .rq-tab-badge--empty {
+          display: none;
         }
         .quotations-footer {
           display: flex;
@@ -753,6 +860,19 @@ export function BuyerQuotationsPanel() {
           .quotation-product-name { font-size: 20px; }
           .quotation-value { font-size: 18px; }
           .quotation-total { font-size: 20px; }
+        }
+        @media (max-width: 480px) {
+          .quotations-title { font-size: 28px; }
+          .quotation-card { padding: 18px 16px; }
+          .quotation-offer-actions {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .quotation-offer-actions .quotation-btn-accept,
+          .quotation-offer-actions .quotation-btn-reject {
+            width: 100%;
+            justify-content: center;
+          }
         }
       `}</style>
     </>
